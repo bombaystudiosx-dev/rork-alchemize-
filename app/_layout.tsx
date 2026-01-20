@@ -1,9 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { initDatabase } from "@/lib/database";
 import { preloadCriticalImages } from "@/constants/image-config";
 import { ThemeProvider } from "@/contexts/theme-context";
@@ -14,44 +13,22 @@ SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
-function RootLayoutNav({ appReady }: { appReady: boolean }) {
+function RootLayoutNav() {
   const { isAuthenticated, isLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
-  const [hasNavigated, setHasNavigated] = useState(false);
 
   useEffect(() => {
-    if (isLoading || !appReady) return;
+    if (isLoading) return;
 
     const inAuthGroup = segments[0] === 'auth';
 
     if (!isAuthenticated && !inAuthGroup) {
-      console.log('[Nav] Redirecting to auth');
       router.replace('/auth' as any);
-      setHasNavigated(true);
     } else if (isAuthenticated && inAuthGroup) {
-      console.log('[Nav] Redirecting to home');
       router.replace('/');
-      setHasNavigated(true);
-    } else {
-      setHasNavigated(true);
     }
-  }, [isAuthenticated, isLoading, segments, router, appReady]);
-
-  useEffect(() => {
-    if (!isLoading && appReady && hasNavigated) {
-      console.log('[Nav] Hiding splash screen');
-      SplashScreen.hideAsync();
-    }
-  }, [isLoading, appReady, hasNavigated]);
-
-  if (isLoading || !appReady) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#8b5cf6" />
-      </View>
-    );
-  }
+  }, [isAuthenticated, isLoading, segments, router]);
 
   return (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
@@ -91,8 +68,6 @@ function RootLayoutNav({ appReady }: { appReady: boolean }) {
 }
 
 export default function RootLayout() {
-  const [appReady, setAppReady] = useState(false);
-
   useEffect(() => {
     const initialize = async () => {
       try {
@@ -116,7 +91,7 @@ export default function RootLayout() {
       } catch (error) {
         console.error('[App] Initialization error:', error);
       } finally {
-        setAppReady(true);
+        SplashScreen.hideAsync();
       }
     };
     
@@ -129,7 +104,7 @@ export default function RootLayout() {
         <AuthProvider>
           <ThemeProvider>
             <GestureHandlerRootView style={{ flex: 1 }}>
-              <RootLayoutNav appReady={appReady} />
+              <RootLayoutNav />
             </GestureHandlerRootView>
           </ThemeProvider>
         </AuthProvider>
@@ -137,12 +112,3 @@ export default function RootLayout() {
     </trpc.Provider>
   );
 }
-
-const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#000',
-  },
-});

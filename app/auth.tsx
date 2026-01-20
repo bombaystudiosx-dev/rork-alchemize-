@@ -13,8 +13,10 @@ import {
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/auth-context';
+import { useRouter } from 'expo-router';
 
 export default function AuthScreen() {
+  const router = useRouter();
   const { login, signup } = useAuth();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
@@ -26,47 +28,30 @@ export default function AuthScreen() {
   const [language, setLanguage] = useState<'en' | 'es'>('en');
 
   const handleAuth = async () => {
-    const trimmedEmail = email.trim();
-    const trimmedPassword = password.trim();
-    const trimmedName = name.trim();
-    
-    if (!trimmedEmail || !trimmedPassword) {
-      setError(language === 'en' ? 'Please fill in all fields' : 'Por favor complete todos los campos');
+    if (!email || !password) {
+      setError('Please fill in all fields');
       return;
     }
 
-    if (mode === 'signup' && !trimmedName) {
-      setError(language === 'en' ? 'Please enter your name' : 'Por favor ingrese su nombre');
-      return;
-    }
-    
-    if (trimmedPassword.length < 4) {
-      setError(language === 'en' ? 'Password must be at least 4 characters' : 'La contraseña debe tener al menos 4 caracteres');
+    if (mode === 'signup' && !name) {
+      setError('Please enter your name');
       return;
     }
 
     setIsLoading(true);
     setError('');
 
-    try {
-      console.log('[AuthScreen] Attempting', mode, 'for:', trimmedEmail);
-      
-      const result = mode === 'login'
-        ? await login(trimmedEmail, trimmedPassword, rememberMe)
-        : await signup(trimmedEmail, trimmedPassword, trimmedName);
+    const result =
+      mode === 'login'
+        ? await login(email, password, rememberMe)
+        : await signup(email, password, name);
 
-      console.log('[AuthScreen] Result:', result);
+    setIsLoading(false);
 
-      if (result.success) {
-        console.log('[AuthScreen] Success - navigating to home');
-      } else {
-        setError(result.error || (language === 'en' ? 'Authentication failed' : 'Error de autenticación'));
-      }
-    } catch (err: any) {
-      console.error('[AuthScreen] Error:', err);
-      setError(language === 'en' ? 'Something went wrong. Please try again.' : 'Algo salió mal. Inténtelo de nuevo.');
-    } finally {
-      setIsLoading(false);
+    if (result.success) {
+      router.replace('/');
+    } else {
+      setError(result.error || 'Authentication failed');
     }
   };
 

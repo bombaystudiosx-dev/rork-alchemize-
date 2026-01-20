@@ -36,84 +36,56 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const [rememberMe, setRememberMeState] = useState(false);
 
   useEffect(() => {
-    const loadAuthState = async () => {
-      try {
-        console.log('[Auth] Loading auth state...');
-        
-        let storedAuth: string | null = null;
-        let storedRememberMe: string | null = null;
-        
-        try {
-          storedAuth = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
-        } catch (e) {
-          console.warn('[Auth] Failed to get auth from storage:', e);
-        }
-        
-        try {
-          storedRememberMe = await AsyncStorage.getItem(REMEMBER_ME_KEY);
-        } catch (e) {
-          console.warn('[Auth] Failed to get remember me from storage:', e);
-        }
-
-        if (storedAuth && typeof storedAuth === 'string' && storedAuth.trim().startsWith('{')) {
-          try {
-            const auth = JSON.parse(storedAuth) as AuthState;
-            if (auth && typeof auth === 'object' && auth.user && typeof auth.user === 'object') {
-              setAuthState(auth);
-              if (Platform.OS !== 'web') {
-                setCurrentUserId(auth.user.id);
-              }
-              console.log('[Auth] Restored auth state for:', auth.user?.email);
-            }
-          } catch (parseError) {
-            console.warn('[Auth] Invalid auth data, clearing:', parseError);
-            try {
-              await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
-            } catch (e) {
-              console.warn('[Auth] Failed to clear auth:', e);
-            }
-          }
-        } else {
-          console.log('[Auth] No stored auth found');
-        }
-
-        if (storedRememberMe === 'true') {
-          setRememberMeState(true);
-        }
-      } catch (error) {
-        console.error('[Auth] Error loading auth state:', error);
-      } finally {
-        console.log('[Auth] Auth loading complete');
-        setIsLoading(false);
-      }
-    };
-    
     loadAuthState();
   }, []);
 
-  const login = async (email: string, password: string, remember: boolean): Promise<{ success: boolean; error?: string }> => {
+  const loadAuthState = async () => {
     try {
-      console.log('[Auth] Attempting login for:', email);
-      
-      let usersData: string | null = null;
-      try {
-        usersData = await AsyncStorage.getItem(USERS_STORAGE_KEY);
-      } catch (e) {
-        console.warn('[Auth] Failed to get users from storage:', e);
+      const [storedAuth, storedRememberMe] = await Promise.all([
+        AsyncStorage.getItem(AUTH_STORAGE_KEY).catch(() => null),
+        AsyncStorage.getItem(REMEMBER_ME_KEY).catch(() => null),
+      ]);
+
+      if (storedAuth && typeof storedAuth === 'string' && storedAuth.trim().startsWith('{')) {
+        try {
+          const auth = JSON.parse(storedAuth) as AuthState;
+          if (auth && typeof auth === 'object' && auth.user && typeof auth.user === 'object') {
+            setAuthState(auth);
+            if (Platform.OS !== 'web') {
+              setCurrentUserId(auth.user.id);
+            }
+            console.log('[Auth] Loaded auth state:', auth.user?.email);
+          }
+        } catch (parseError) {
+          console.warn('[Auth] Invalid auth data, clearing:', parseError);
+          await AsyncStorage.removeItem(AUTH_STORAGE_KEY).catch(() => {});
+        }
       }
+
+      if (storedRememberMe === 'true') {
+        setRememberMeState(true);
+      }
+    } catch (error) {
+      console.error('[Auth] Error loading auth state:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const login = async (email: string, password: string, remember: boolean) => {
+    try {
+      console.log('[Auth] Logging in:', email);
       
+      const usersData = await AsyncStorage.getItem(USERS_STORAGE_KEY);
       const users: StoredUser[] = usersData ? JSON.parse(usersData) : [];
-      console.log('[Auth] Found', users.length, 'registered users');
       
       const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
       
       if (!user) {
-        console.log('[Auth] User not found:', email);
         return { success: false, error: 'User not found. Please sign up first.' };
       }
       
       if (user.password !== password) {
-        console.log('[Auth] Invalid password for:', email);
         return { success: false, error: 'Invalid password' };
       }
 
@@ -134,63 +106,46 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         setCurrentUserId(user.id);
       }
 
-      try {
-        await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newAuthState));
-        await AsyncStorage.setItem(REMEMBER_ME_KEY, remember.toString());
-      } catch (e) {
-        console.warn('[Auth] Failed to save auth to storage:', e);
-      }
+      await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newAuthState));
+      await AsyncStorage.setItem(REMEMBER_ME_KEY, remember.toString());
 
-      console.log('[Auth] Login successful for:', email);
+      console.log('[Auth] Login successful');
       return { success: true };
     } catch (error: any) {
       console.error('[Auth] Login error:', error);
-      return { success: false, error: error?.message || 'Login failed. Please try again.' };
+      return { success: false, error: error.message || 'Login failed' };
     }
   };
 
-  const signup = async (email: string, password: string, name: string): Promise<{ success: boolean; error?: string }> => {
+  const signup = async (email: string, password: string, name: string) => {
     try {
-      console.log('[Auth] Attempting signup for:', email);
+      console.log('[Auth] Signing up:', email);
 
-      let usersData: string | null = null;
-      try {
-        usersData = await AsyncStorage.getItem(USERS_STORAGE_KEY);
-      } catch (e) {
-        console.warn('[Auth] Failed to get users from storage:', e);
-      }
-      
+      const usersData = await AsyncStorage.getItem(USERS_STORAGE_KEY);
       const users: StoredUser[] = usersData ? JSON.parse(usersData) : [];
       
       const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
       if (existingUser) {
-        console.log('[Auth] User already exists:', email);
-        return { success: false, error: 'An account with this email already exists. Please login instead.' };
+        return { success: false, error: 'User already exists' };
       }
       
       const userId = `user_${Date.now()}_${Math.random().toString(36).substring(7)}`;
       const newUser: StoredUser = {
         id: userId,
-        email: email.toLowerCase().trim(),
-        name: name.trim(),
+        email,
+        name,
         password,
       };
       
       users.push(newUser);
-      
-      try {
-        await AsyncStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-      } catch (e) {
-        console.error('[Auth] Failed to save users to storage:', e);
-        return { success: false, error: 'Failed to create account. Please try again.' };
-      }
+      await AsyncStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
 
       const token = `token_${userId}_${Date.now()}`;
       const newAuthState: AuthState = {
         user: {
           id: userId,
-          email: email.toLowerCase().trim(),
-          name: name.trim(),
+          email,
+          name,
         },
         token,
       };
@@ -201,17 +156,13 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         setCurrentUserId(userId);
       }
 
-      try {
-        await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newAuthState));
-      } catch (e) {
-        console.warn('[Auth] Failed to save auth to storage:', e);
-      }
+      await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newAuthState));
 
-      console.log('[Auth] Signup successful for:', email);
+      console.log('[Auth] Signup successful');
       return { success: true };
     } catch (error: any) {
       console.error('[Auth] Signup error:', error);
-      return { success: false, error: error?.message || 'Signup failed. Please try again.' };
+      return { success: false, error: error.message || 'Signup failed' };
     }
   };
 
