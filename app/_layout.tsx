@@ -9,7 +9,6 @@ import { preloadCriticalImages } from "@/constants/image-config";
 import { ThemeProvider } from "@/contexts/theme-context";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import { trpc, trpcClient } from "@/lib/trpc";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -125,19 +124,17 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ErrorBoundary>
-      <trpc.Provider client={trpcClient} queryClient={queryClient}>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <ThemeProvider>
-              <GestureHandlerRootView style={{ flex: 1 }}>
-                <RootLayoutNav appReady={appReady} />
-              </GestureHandlerRootView>
-            </ThemeProvider>
-          </AuthProvider>
-        </QueryClientProvider>
-      </trpc.Provider>
-    </ErrorBoundary>
+    <trpc.Provider client={trpcClient} queryClient={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <ThemeProvider>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+              <RootLayoutNav appReady={appReady} />
+            </GestureHandlerRootView>
+          </ThemeProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </trpc.Provider>
   );
 }
 

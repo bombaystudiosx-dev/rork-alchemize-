@@ -1075,16 +1075,6 @@ export const foodLogsDb = {
     );
   },
   
-  async update(log: FoodLog): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return;
-    await database.runAsync(
-      'UPDATE food_logs SET foodName = ?, servingDescription = ?, calories = ?, proteinGrams = ?, carbGrams = ?, fatGrams = ?, sugarGrams = ?, fiberGrams = ?, mealType = ?, sourceType = ?, loggedAt = ?, isLocked = ?, calendarEventId = ? WHERE id = ? AND userId = ?',
-      [log.foodName, log.servingDescription, log.calories, log.proteinGrams, log.carbGrams, log.fatGrams, log.sugarGrams, log.fiberGrams, log.mealType, log.sourceType, log.loggedAt, log.isLocked ? 1 : 0, log.calendarEventId, log.id, userId]
-    );
-  },
-  
   async delete(id: string): Promise<void> {
     const database = getDatabase();
     await database.runAsync('DELETE FROM food_logs WHERE id = ?', [id]);
