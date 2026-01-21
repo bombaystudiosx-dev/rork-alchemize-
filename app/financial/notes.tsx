@@ -18,6 +18,7 @@ export default function FinancialNotesScreen() {
   const [debtAmount, setDebtAmount] = useState('');
   const [savingsAmount, setSavingsAmount] = useState('');
   const [emergencyFund, setEmergencyFund] = useState('');
+  const [savingsNotes, setSavingsNotes] = useState('');
 
   const [loginsY, setLoginsY] = useState(0);
   const [debtY, setDebtY] = useState(0);
@@ -35,6 +36,7 @@ export default function FinancialNotesScreen() {
       setDebtAmount(existingNotes.debtAmount.toString());
       setSavingsAmount(existingNotes.savingsAmount.toString());
       setEmergencyFund(existingNotes.emergencyFund.toString());
+      setSavingsNotes(existingNotes.savingsNotes || '');
     }
   }, [existingNotes]);
 
@@ -73,6 +75,7 @@ export default function FinancialNotesScreen() {
       debtDueDate: null,
       savingsAmount: savings,
       emergencyFund: emergency,
+      savingsNotes: savingsNotes.trim(),
       updatedAt: Date.now(),
     };
 
@@ -199,6 +202,17 @@ export default function FinancialNotesScreen() {
               keyboardType="decimal-pad"
             />
           </View>
+          <Text style={styles.label}>Savings Notes</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={savingsNotes}
+            onChangeText={setSavingsNotes}
+            placeholder="Savings goals, account details, investment notes..."
+            placeholderTextColor="#555"
+            multiline
+            numberOfLines={5}
+            textAlignVertical="top"
+          />
         </View>
 
         <TouchableOpacity

@@ -125,7 +125,7 @@ export default function FinancialTrackerScreen() {
               </View>
             </View>
             <View style={styles.cardContent}>
-              {notesData && (notesData.savingsAmount > 0 || notesData.emergencyFund > 0) ? (
+              {notesData && (notesData.savingsAmount > 0 || notesData.emergencyFund > 0 || notesData.savingsNotes) ? (
                 <>
                   <View style={styles.savingsRow}>
                     <View style={styles.savingsItem}>
@@ -141,6 +141,11 @@ export default function FinancialTrackerScreen() {
                       </Text>
                     </View>
                   </View>
+                  {notesData.savingsNotes ? (
+                    <Text style={styles.cardPreview} numberOfLines={2}>
+                      {notesData.savingsNotes}
+                    </Text>
+                  ) : null}
                 </>
               ) : (
                 <Text style={styles.emptyText}>Tap to track your savings</Text>

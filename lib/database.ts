@@ -199,6 +199,7 @@ export async function initDatabase() {
       debtDueDate INTEGER,
       savingsAmount REAL NOT NULL DEFAULT 0,
       emergencyFund REAL NOT NULL DEFAULT 0,
+      savingsNotes TEXT NOT NULL DEFAULT '',
       updatedAt INTEGER NOT NULL
     );
     
@@ -1050,9 +1051,9 @@ export const financialNoteDb = {
     }
     const database = getDatabase();
     await database.runAsync(
-      `INSERT OR REPLACE INTO financial_notes (id, userId, noteLoginInfo, noteTotalDebt, debtAmount, debtDueDate, savingsAmount, emergencyFund, updatedAt) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [note.id, userId, note.noteLoginInfo, note.noteTotalDebt, note.debtAmount, note.debtDueDate, note.savingsAmount, note.emergencyFund, note.updatedAt]
+      `INSERT OR REPLACE INTO financial_notes (id, userId, noteLoginInfo, noteTotalDebt, debtAmount, debtDueDate, savingsAmount, emergencyFund, savingsNotes, updatedAt) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [note.id, userId, note.noteLoginInfo, note.noteTotalDebt, note.debtAmount, note.debtDueDate, note.savingsAmount, note.emergencyFund, note.savingsNotes || '', note.updatedAt]
     );
   },
 };

@@ -121,6 +121,7 @@ export interface FinancialNote {
   debtDueDate: number | null;
   savingsAmount: number;
   emergencyFund: number;
+  savingsNotes: string;
   updatedAt: number;
 }
 
