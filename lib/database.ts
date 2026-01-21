@@ -1027,6 +1027,13 @@ export const financialExpenseDb = {
 
 export const financialNoteDb = {
   async get(): Promise<FinancialNote | null> {
+    if (Platform.OS === 'web') {
+      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+      const userId = getCurrentUserId();
+      if (!userId) return null;
+      const stored = await AsyncStorage.getItem(`financial_notes_${userId}`);
+      return stored ? JSON.parse(stored) : null;
+    }
     const database = getDatabase();
     const userId = getCurrentUserId();
     if (!userId) return null;
@@ -1034,9 +1041,14 @@ export const financialNoteDb = {
   },
   
   async createOrUpdate(note: FinancialNote): Promise<void> {
-    const database = getDatabase();
     const userId = getCurrentUserId();
     if (!userId) throw new Error('User not authenticated');
+    if (Platform.OS === 'web') {
+      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+      await AsyncStorage.setItem(`financial_notes_${userId}`, JSON.stringify(note));
+      return;
+    }
+    const database = getDatabase();
     await database.runAsync(
       `INSERT OR REPLACE INTO financial_notes (id, userId, noteLoginInfo, noteTotalDebt, debtAmount, debtDueDate, savingsAmount, emergencyFund, updatedAt) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
