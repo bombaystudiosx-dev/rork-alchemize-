@@ -88,12 +88,16 @@ export default function FinancialTrackerScreen() {
               </View>
             </View>
             <View style={styles.cardContent}>
-              {notesData && notesData.debtAmount > 0 ? (
+              {notesData && (notesData.debtAmount > 0 || notesData.noteTotalDebt) ? (
                 <>
-                  <Text style={styles.amountLabel}>Total Debt</Text>
-                  <Text style={[styles.amountValue, styles.debtAmount]}>
-                    ${notesData.debtAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                  </Text>
+                  {notesData.debtAmount > 0 && (
+                    <>
+                      <Text style={styles.amountLabel}>Total Debt</Text>
+                      <Text style={[styles.amountValue, styles.debtAmount]}>
+                        ${notesData.debtAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      </Text>
+                    </>
+                  )}
                   {notesData.noteTotalDebt ? (
                     <Text style={styles.cardPreview} numberOfLines={2}>
                       {notesData.noteTotalDebt}
@@ -101,7 +105,7 @@ export default function FinancialTrackerScreen() {
                   ) : null}
                 </>
               ) : (
-                <Text style={styles.emptyText}>Tap to track your debt</Text>
+                <Text style={styles.emptyText}>Tap to add debt notes</Text>
               )}
             </View>
             <View style={styles.cardFooter}>
@@ -127,20 +131,22 @@ export default function FinancialTrackerScreen() {
             <View style={styles.cardContent}>
               {notesData && (notesData.savingsAmount > 0 || notesData.emergencyFund > 0 || notesData.savingsNotes) ? (
                 <>
-                  <View style={styles.savingsRow}>
-                    <View style={styles.savingsItem}>
-                      <Text style={styles.amountLabel}>Savings</Text>
-                      <Text style={[styles.amountValue, styles.savingsAmount]}>
-                        ${notesData.savingsAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                      </Text>
+                  {(notesData.savingsAmount > 0 || notesData.emergencyFund > 0) && (
+                    <View style={styles.savingsRow}>
+                      <View style={styles.savingsItem}>
+                        <Text style={styles.amountLabel}>Savings</Text>
+                        <Text style={[styles.amountValue, styles.savingsAmount]}>
+                          ${notesData.savingsAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </Text>
+                      </View>
+                      <View style={styles.savingsItem}>
+                        <Text style={styles.amountLabel}>Emergency Fund</Text>
+                        <Text style={[styles.amountValue, styles.savingsAmount]}>
+                          ${notesData.emergencyFund.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </Text>
+                      </View>
                     </View>
-                    <View style={styles.savingsItem}>
-                      <Text style={styles.amountLabel}>Emergency Fund</Text>
-                      <Text style={[styles.amountValue, styles.savingsAmount]}>
-                        ${notesData.emergencyFund.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                      </Text>
-                    </View>
-                  </View>
+                  )}
                   {notesData.savingsNotes ? (
                     <Text style={styles.cardPreview} numberOfLines={2}>
                       {notesData.savingsNotes}
@@ -148,7 +154,7 @@ export default function FinancialTrackerScreen() {
                   ) : null}
                 </>
               ) : (
-                <Text style={styles.emptyText}>Tap to track your savings</Text>
+                <Text style={styles.emptyText}>Tap to add savings notes</Text>
               )}
             </View>
             <View style={styles.cardFooter}>
