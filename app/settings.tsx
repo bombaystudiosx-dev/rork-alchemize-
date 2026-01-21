@@ -38,6 +38,8 @@ import {
   Zap,
   CheckCircle,
   AlertCircle,
+  Download,
+  Smartphone,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -111,6 +113,8 @@ export default function SettingsScreen() {
   const [healthKitLastSync, setHealthKitLastSync] = useState<string | null>(null);
   const [isSyncingHealthKit, setIsSyncingHealthKit] = useState(false);
   const { theme, setTheme } = useTheme();
+  const [pwaInstallPrompt, setPwaInstallPrompt] = useState<any>(null);
+  const [isPwaInstalled, setIsPwaInstalled] = useState(false);
 
   const loadProfile = useCallback(async () => {
     try {
@@ -241,6 +245,27 @@ export default function SettingsScreen() {
     loadCalendarVisibility();
     checkBluetoothSupport();
     loadHealthKitStatus();
+
+    if (Platform.OS === 'web') {
+      const checkPwaInstalled = () => {
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+          (window.navigator as any).standalone === true;
+        setIsPwaInstalled(isStandalone);
+        console.log('[Settings] PWA installed check:', isStandalone);
+      };
+      checkPwaInstalled();
+
+      const handleBeforeInstallPrompt = (e: Event) => {
+        e.preventDefault();
+        setPwaInstallPrompt(e);
+        console.log('[Settings] PWA install prompt captured');
+      };
+
+      window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      return () => {
+        window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      };
+    }
   }, [loadProfile, loadFeatureVisibility, loadCalendarVisibility, loadHealthKitStatus]);
 
   const checkBluetoothSupport = async () => {
@@ -250,6 +275,36 @@ export default function SettingsScreen() {
       console.log('[Settings] Web Bluetooth supported:', supported);
     } else {
       console.log('[Settings] Native Bluetooth requires custom dev build');
+    }
+  };
+
+  const handlePwaInstall = async () => {
+    if (isPwaInstalled) {
+      Alert.alert('Already Installed', 'Alchemize is already installed on your device.');
+      return;
+    }
+
+    if (pwaInstallPrompt) {
+      try {
+        pwaInstallPrompt.prompt();
+        const { outcome } = await pwaInstallPrompt.userChoice;
+        console.log('[Settings] PWA install outcome:', outcome);
+        if (outcome === 'accepted') {
+          setIsPwaInstalled(true);
+          setPwaInstallPrompt(null);
+          Alert.alert('Installed!', 'Alchemize has been added to your home screen.');
+        }
+      } catch (error) {
+        console.error('[Settings] PWA install error:', error);
+      }
+    } else {
+      Alert.alert(
+        'Install Alchemize',
+        Platform.OS === 'web' 
+          ? 'To install: tap the share button in your browser, then select "Add to Home Screen" or "Install App".'
+          : 'This feature is only available on web browsers.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
@@ -707,6 +762,31 @@ export default function SettingsScreen() {
           </View>
           <ChevronRight color="#666" size={20} />
         </TouchableOpacity>
+
+        {Platform.OS === 'web' && (
+          <TouchableOpacity style={styles.settingRow} onPress={handlePwaInstall}>
+            <View style={styles.settingRowLeft}>
+              <View style={[styles.iconContainer, { backgroundColor: 'rgba(251, 191, 36, 0.15)' }]}>
+                {isPwaInstalled ? (
+                  <Smartphone color="#fbbf24" size={20} />
+                ) : (
+                  <Download color="#fbbf24" size={20} />
+                )}
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Install App</Text>
+                <Text style={styles.settingSubtitle}>
+                  {isPwaInstalled ? 'App is installed on your device' : 'Add Alchemize to your home screen'}
+                </Text>
+              </View>
+            </View>
+            {isPwaInstalled ? (
+              <CheckCircle color="#22c55e" size={20} />
+            ) : (
+              <ChevronRight color="#666" size={20} />
+            )}
+          </TouchableOpacity>
+        )}
 
         <View style={styles.settingRow}>
           <View style={styles.settingRowLeft}>
