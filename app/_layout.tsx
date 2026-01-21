@@ -1,34 +1,58 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { Platform, View, ActivityIndicator, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { initDatabase } from "@/lib/database";
 import { preloadCriticalImages } from "@/constants/image-config";
 import { ThemeProvider } from "@/contexts/theme-context";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
-import { trpc, trpcClient } from "@/lib/trpc";
 
 SplashScreen.preventAutoHideAsync();
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 5 * 60 * 1000,
+    },
+  },
+});
 
 function RootLayoutNav() {
   const { isAuthenticated, isLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const [isNavigating, setIsNavigating] = useState(false);
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || isNavigating) return;
 
     const inAuthGroup = segments[0] === 'auth';
 
     if (!isAuthenticated && !inAuthGroup) {
-      router.replace('/auth' as any);
+      setIsNavigating(true);
+      setTimeout(() => {
+        router.replace('/auth' as any);
+        setIsNavigating(false);
+      }, 100);
     } else if (isAuthenticated && inAuthGroup) {
-      router.replace('/');
+      setIsNavigating(true);
+      setTimeout(() => {
+        router.replace('/');
+        setIsNavigating(false);
+      }, 100);
     }
-  }, [isAuthenticated, isLoading, segments, router]);
+  }, [isAuthenticated, isLoading, segments, router, isNavigating]);
+
+  if (isLoading) {
+    return (
+      <View style={layoutStyles.loadingContainer}>
+        <ActivityIndicator size="large" color="#8b5cf6" />
+      </View>
+    );
+  }
 
   return (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
@@ -68,16 +92,20 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  const [isReady, setIsReady] = useState(false);
+
   useEffect(() => {
     const initialize = async () => {
       try {
         console.log('[App] Starting initialization...');
         
-        try {
-          await initDatabase();
-          console.log('[App] Database initialized');
-        } catch (dbError) {
-          console.warn('[App] Database init warning:', dbError);
+        if (Platform.OS !== 'web') {
+          try {
+            await initDatabase();
+            console.log('[App] Database initialized');
+          } catch (dbError) {
+            console.warn('[App] Database init warning:', dbError);
+          }
         }
         
         try {
@@ -88,27 +116,44 @@ export default function RootLayout() {
         }
         
         console.log('[App] Initialization complete');
+        setIsReady(true);
       } catch (error) {
         console.error('[App] Initialization error:', error);
+        setIsReady(true);
       } finally {
-        SplashScreen.hideAsync();
+        await SplashScreen.hideAsync();
       }
     };
     
     initialize();
   }, []);
 
+  if (!isReady) {
+    return (
+      <View style={layoutStyles.loadingContainer}>
+        <ActivityIndicator size="large" color="#8b5cf6" />
+      </View>
+    );
+  }
+
   return (
-    <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <ThemeProvider>
-            <GestureHandlerRootView style={{ flex: 1 }}>
-              <RootLayoutNav />
-            </GestureHandlerRootView>
-          </ThemeProvider>
-        </AuthProvider>
-      </QueryClientProvider>
-    </trpc.Provider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <ThemeProvider>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <RootLayoutNav />
+          </GestureHandlerRootView>
+        </ThemeProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
+
+const layoutStyles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
+  },
+});
