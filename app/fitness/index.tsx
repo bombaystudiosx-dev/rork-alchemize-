@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Text, ImageBackground, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { Play, TrendingUp, Award, ChevronRight } from 'lucide-react-native';
+import { Play, TrendingUp, Award, ChevronRight, Plus, Watch, Dumbbell } from 'lucide-react-native';
 import { workoutTemplatesDb, workoutSessionsDb, normalizedMetricsDb, fitnessGoalsDb, fitnessPlansDb, awardsDb } from '@/lib/database';
 import {
   seedWorkoutTemplates,
@@ -126,6 +126,28 @@ export default function FitnessHubScreen() {
       >
         <View style={styles.overlay} />
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+          <View style={styles.addWorkoutSection}>
+            <TouchableOpacity
+              style={styles.addManualButton}
+              onPress={() => router.push('/fitness/add' as any)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.addManualIcon}>
+                <Dumbbell size={24} color="#fff" />
+              </View>
+              <View style={styles.addManualContent}>
+                <Text style={styles.addManualTitle}>Log Manual Workout</Text>
+                <Text style={styles.addManualSubtitle}>AI estimates calories burned</Text>
+              </View>
+              <Plus size={24} color="#10b981" />
+            </TouchableOpacity>
+            
+            <View style={styles.wearableNote}>
+              <Watch size={16} color="#6366f1" />
+              <Text style={styles.wearableNoteText}>Apple Watch & fitness ring sync coming soon</Text>
+            </View>
+          </View>
+
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Today&apos;s Progress</Text>
             <View style={styles.progressContainer}>
@@ -480,5 +502,51 @@ const styles = StyleSheet.create({
   },
   awardTitleLocked: {
     color: '#666',
+  },
+  addWorkoutSection: {
+    marginBottom: 20,
+  },
+  addManualButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+    gap: 14,
+  },
+  addManualIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#10b981',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addManualContent: {
+    flex: 1,
+  },
+  addManualTitle: {
+    fontSize: 17,
+    fontWeight: '600' as const,
+    color: '#fff',
+    marginBottom: 2,
+  },
+  addManualSubtitle: {
+    fontSize: 13,
+    color: '#10b981',
+  },
+  wearableNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingHorizontal: 12,
+  },
+  wearableNoteText: {
+    fontSize: 12,
+    color: '#6366f1',
+    fontStyle: 'italic',
   },
 });

@@ -40,6 +40,20 @@ const ACTIVITY_LEVELS: { value: ActivityLevel; label: string; description: strin
   { value: 'very_active', label: 'Extra Active', description: 'Very hard exercise & physical job', multiplier: 1.9 },
 ];
 
+const cmToFeetInches = (cm: number): { feet: number; inches: number } => {
+  const totalInches = cm / 2.54;
+  const feet = Math.floor(totalInches / 12);
+  const inches = Math.round(totalInches % 12);
+  return { feet, inches };
+};
+
+const feetInchesToCm = (feet: number, inches: number): number => {
+  return (feet * 12 + inches) * 2.54;
+};
+
+const kgToLbs = (kg: number): number => Math.round(kg * 2.205);
+const lbsToKg = (lbs: number): number => lbs / 2.205;
+
 const WEIGHT_GOALS: { value: WeightGoal; label: string; description: string; icon: React.ReactNode; calorieAdjust: number }[] = [
   { value: 'lose', label: 'Lose Weight', description: '-500 cal/day', icon: <TrendingDown size={22} color="#22c55e" />, calorieAdjust: -500 },
   { value: 'maintain', label: 'Maintain', description: 'No change', icon: <Minus size={22} color="#6366f1" />, calorieAdjust: 0 },
@@ -57,9 +71,10 @@ export default function NutritionProfileScreen() {
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
 
-  const [height, setHeight] = useState('170');
-  const [weight, setWeight] = useState('70');
-  const [targetWeight, setTargetWeight] = useState('65');
+  const [heightFeet, setHeightFeet] = useState('5');
+  const [heightInches, setHeightInches] = useState('7');
+  const [weight, setWeight] = useState('154');
+  const [targetWeight, setTargetWeight] = useState('143');
   const [age, setAge] = useState('30');
   const [gender, setGender] = useState<'male' | 'female' | 'other'>('male');
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>('moderate');
@@ -83,9 +98,11 @@ export default function NutritionProfileScreen() {
 
   useEffect(() => {
     if (existingProfile) {
-      setHeight(existingProfile.height.toString());
-      setWeight(existingProfile.weight.toString());
-      setTargetWeight(existingProfile.targetWeight.toString());
+      const { feet, inches } = cmToFeetInches(existingProfile.height);
+      setHeightFeet(feet.toString());
+      setHeightInches(inches.toString());
+      setWeight(kgToLbs(existingProfile.weight).toString());
+      setTargetWeight(kgToLbs(existingProfile.targetWeight).toString());
       setAge(existingProfile.age.toString());
       setGender(existingProfile.gender);
       setActivityLevel(existingProfile.activityLevel);
@@ -100,8 +117,8 @@ export default function NutritionProfileScreen() {
   }, [existingProfile]);
 
   const calculatedValues = useMemo(() => {
-    const h = parseFloat(height) || 170;
-    const w = parseFloat(weight) || 70;
+    const h = feetInchesToCm(parseInt(heightFeet) || 5, parseInt(heightInches) || 7);
+    const w = lbsToKg(parseFloat(weight) || 154);
     const a = parseInt(age) || 30;
     
     let bmr: number;
@@ -135,7 +152,7 @@ export default function NutritionProfileScreen() {
       targetFat,
       targetFiber,
     };
-  }, [height, weight, age, gender, activityLevel, goal]);
+  }, [heightFeet, heightInches, weight, age, gender, activityLevel, goal]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -143,11 +160,11 @@ export default function NutritionProfileScreen() {
       
       const profile: UserNutritionProfile = {
         id: existingProfile?.id || 'main',
-        height: parseFloat(height) || 170,
+        height: feetInchesToCm(parseInt(heightFeet) || 5, parseInt(heightInches) || 7),
         heightUnit: 'cm',
-        weight: parseFloat(weight) || 70,
+        weight: lbsToKg(parseFloat(weight) || 154),
         weightUnit: 'kg',
-        targetWeight: parseFloat(targetWeight) || 65,
+        targetWeight: lbsToKg(parseFloat(targetWeight) || 143),
         age: parseInt(age) || 30,
         gender,
         activityLevel,
@@ -200,25 +217,40 @@ export default function NutritionProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Body Metrics</Text>
           
-          <View style={styles.metricsGrid}>
-            <View style={styles.metricCard}>
+          <View style={styles.metricCard}>
               <View style={styles.metricHeader}>
                 <Ruler size={18} color="#a855f7" />
                 <Text style={styles.metricLabel}>Height</Text>
               </View>
-              <View style={styles.metricInputRow}>
-                <TextInput
-                  style={styles.metricInput}
-                  value={height}
-                  onChangeText={setHeight}
-                  keyboardType="decimal-pad"
-                  placeholder="170"
-                  placeholderTextColor="#444"
-                />
-                <Text style={styles.metricUnit}>cm</Text>
+              <View style={styles.heightInputRow}>
+                <View style={styles.heightInputGroup}>
+                  <TextInput
+                    style={styles.heightInput}
+                    value={heightFeet}
+                    onChangeText={setHeightFeet}
+                    keyboardType="number-pad"
+                    placeholder="5"
+                    placeholderTextColor="#444"
+                    maxLength={1}
+                  />
+                  <Text style={styles.metricUnit}>ft</Text>
+                </View>
+                <View style={styles.heightInputGroup}>
+                  <TextInput
+                    style={styles.heightInput}
+                    value={heightInches}
+                    onChangeText={setHeightInches}
+                    keyboardType="number-pad"
+                    placeholder="7"
+                    placeholderTextColor="#444"
+                    maxLength={2}
+                  />
+                  <Text style={styles.metricUnit}>in</Text>
+                </View>
               </View>
             </View>
-            
+
+          <View style={styles.metricsGrid}>
             <View style={styles.metricCard}>
               <View style={styles.metricHeader}>
                 <Scale size={18} color="#22c55e" />
@@ -230,10 +262,10 @@ export default function NutritionProfileScreen() {
                   value={weight}
                   onChangeText={setWeight}
                   keyboardType="decimal-pad"
-                  placeholder="70"
+                  placeholder="154"
                   placeholderTextColor="#444"
                 />
-                <Text style={styles.metricUnit}>kg</Text>
+                <Text style={styles.metricUnit}>lbs</Text>
               </View>
             </View>
 
@@ -265,10 +297,10 @@ export default function NutritionProfileScreen() {
                   value={targetWeight}
                   onChangeText={setTargetWeight}
                   keyboardType="decimal-pad"
-                  placeholder="65"
+                  placeholder="143"
                   placeholderTextColor="#444"
                 />
-                <Text style={styles.metricUnit}>kg</Text>
+                <Text style={styles.metricUnit}>lbs</Text>
               </View>
             </View>
           </View>
@@ -581,6 +613,22 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 12,
     marginBottom: 16,
+  },
+  heightInputRow: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  heightInputGroup: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flex: 1,
+  },
+  heightInput: {
+    fontSize: 28,
+    fontWeight: '700' as const,
+    color: '#fff',
+    width: 50,
+    textAlign: 'center',
   },
   metricCard: {
     width: '48%',
