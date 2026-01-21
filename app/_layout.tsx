@@ -27,17 +27,23 @@ function RootLayoutNav() {
   const [isNavigating, setIsNavigating] = useState(false);
 
   useEffect(() => {
-    if (isLoading || isNavigating) return;
+    if (isLoading || isNavigating) {
+      console.log('[Navigation] Waiting...', { isLoading, isNavigating });
+      return;
+    }
 
     const inAuthGroup = segments[0] === 'auth';
+    console.log('[Navigation] Checking auth:', { isAuthenticated, inAuthGroup, segments: segments[0] });
 
     if (!isAuthenticated && !inAuthGroup) {
+      console.log('[Navigation] Redirecting to auth...');
       setIsNavigating(true);
       setTimeout(() => {
         router.replace('/auth' as any);
         setIsNavigating(false);
       }, 100);
     } else if (isAuthenticated && inAuthGroup) {
+      console.log('[Navigation] Redirecting to home...');
       setIsNavigating(true);
       setTimeout(() => {
         router.replace('/');
@@ -102,26 +108,33 @@ export default function RootLayout() {
         if (Platform.OS !== 'web') {
           try {
             await initDatabase();
-            console.log('[App] Database initialized');
+            console.log('[App] Database initialized successfully');
           } catch (dbError) {
-            console.warn('[App] Database init warning:', dbError);
+            console.warn('[App] Database init warning (continuing):', dbError);
           }
+        } else {
+          console.log('[App] Web platform - skipping database init');
         }
         
         try {
           await preloadCriticalImages();
-          console.log('[App] Images preloaded');
+          console.log('[App] Images preloaded successfully');
         } catch (imgError) {
-          console.warn('[App] Image preload warning:', imgError);
+          console.warn('[App] Image preload warning (continuing):', imgError);
         }
         
         console.log('[App] Initialization complete');
         setIsReady(true);
       } catch (error) {
-        console.error('[App] Initialization error:', error);
+        console.error('[App] Initialization error (recovering):', error);
         setIsReady(true);
       } finally {
-        await SplashScreen.hideAsync();
+        try {
+          await SplashScreen.hideAsync();
+          console.log('[App] Splash screen hidden');
+        } catch (splashError) {
+          console.warn('[App] Splash screen hide warning:', splashError);
+        }
       }
     };
     

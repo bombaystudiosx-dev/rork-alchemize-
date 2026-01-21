@@ -41,6 +41,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const loadAuthState = async () => {
     try {
+      console.log('[Auth] Loading auth state...');
       const [storedAuth, storedRememberMe] = await Promise.all([
         AsyncStorage.getItem(AUTH_STORAGE_KEY).catch(() => null),
         AsyncStorage.getItem(REMEMBER_ME_KEY).catch(() => null),
@@ -54,7 +55,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
             if (Platform.OS !== 'web') {
               setCurrentUserId(auth.user.id);
             }
-            console.log('[Auth] Loaded auth state:', auth.user?.email);
+            console.log('[Auth] Auth state loaded successfully:', auth.user?.email);
           } else {
             console.warn('[Auth] Invalid auth structure, clearing');
             await AsyncStorage.removeItem(AUTH_STORAGE_KEY).catch(() => {});
@@ -67,6 +68,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       } else if (storedAuth) {
         console.warn('[Auth] Corrupted auth data detected, clearing all');
         await AsyncStorage.multiRemove([AUTH_STORAGE_KEY, USERS_STORAGE_KEY, REMEMBER_ME_KEY]).catch(() => {});
+      } else {
+        console.log('[Auth] No stored auth found, user needs to login');
       }
 
       if (storedRememberMe === 'true') {
@@ -76,6 +79,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       console.error('[Auth] Error loading auth state:', error);
       await AsyncStorage.multiRemove([AUTH_STORAGE_KEY, USERS_STORAGE_KEY, REMEMBER_ME_KEY]).catch(() => {});
     } finally {
+      console.log('[Auth] Loading complete');
       setIsLoading(false);
     }
   };
