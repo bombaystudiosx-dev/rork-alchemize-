@@ -55,11 +55,18 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
               setCurrentUserId(auth.user.id);
             }
             console.log('[Auth] Loaded auth state:', auth.user?.email);
+          } else {
+            console.warn('[Auth] Invalid auth structure, clearing');
+            await AsyncStorage.removeItem(AUTH_STORAGE_KEY).catch(() => {});
           }
         } catch (parseError) {
-          console.warn('[Auth] Invalid auth data, clearing:', parseError);
+          console.warn('[Auth] Invalid auth JSON, clearing:', parseError);
           await AsyncStorage.removeItem(AUTH_STORAGE_KEY).catch(() => {});
+          await AsyncStorage.removeItem(USERS_STORAGE_KEY).catch(() => {});
         }
+      } else if (storedAuth) {
+        console.warn('[Auth] Corrupted auth data detected, clearing all');
+        await AsyncStorage.multiRemove([AUTH_STORAGE_KEY, USERS_STORAGE_KEY, REMEMBER_ME_KEY]).catch(() => {});
       }
 
       if (storedRememberMe === 'true') {
@@ -67,6 +74,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       }
     } catch (error) {
       console.error('[Auth] Error loading auth state:', error);
+      await AsyncStorage.multiRemove([AUTH_STORAGE_KEY, USERS_STORAGE_KEY, REMEMBER_ME_KEY]).catch(() => {});
     } finally {
       setIsLoading(false);
     }
