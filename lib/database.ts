@@ -364,6 +364,8 @@ export async function initDatabase() {
       dailyCarbsTarget INTEGER NOT NULL DEFAULT 250,
       dailyFatTarget INTEGER NOT NULL DEFAULT 65,
       dailyWaterTarget INTEGER NOT NULL DEFAULT 2000,
+      dailyFiberTarget INTEGER NOT NULL DEFAULT 25,
+      manualMacros INTEGER NOT NULL DEFAULT 0,
       updatedAt INTEGER NOT NULL
     );
     
@@ -607,6 +609,28 @@ async function runMigrations(database: SQLite.SQLiteDatabase) {
         await database.execAsync('DROP TABLE gratitude_entries');
         await database.execAsync('ALTER TABLE gratitude_entries_new RENAME TO gratitude_entries');
         console.log('[Database] Table rebuilt with entryDate column');
+      }
+    }
+    
+    const nutritionProfileHasFiberTarget = await checkColumn('user_nutrition_profiles', 'dailyFiberTarget');
+    if (!nutritionProfileHasFiberTarget) {
+      console.log('[Database] Adding dailyFiberTarget column to user_nutrition_profiles');
+      try {
+        await database.execAsync('ALTER TABLE user_nutrition_profiles ADD COLUMN dailyFiberTarget INTEGER NOT NULL DEFAULT 25');
+        console.log('[Database] Successfully added dailyFiberTarget column');
+      } catch (e) {
+        console.log('[Database] dailyFiberTarget column may already exist:', e);
+      }
+    }
+    
+    const nutritionProfileHasManualMacros = await checkColumn('user_nutrition_profiles', 'manualMacros');
+    if (!nutritionProfileHasManualMacros) {
+      console.log('[Database] Adding manualMacros column to user_nutrition_profiles');
+      try {
+        await database.execAsync('ALTER TABLE user_nutrition_profiles ADD COLUMN manualMacros INTEGER NOT NULL DEFAULT 0');
+        console.log('[Database] Successfully added manualMacros column');
+      } catch (e) {
+        console.log('[Database] manualMacros column may already exist:', e);
       }
     }
     
@@ -1361,9 +1385,9 @@ export const userNutritionProfileDb = {
   async createOrUpdate(profile: UserNutritionProfile): Promise<void> {
     const database = getDatabase();
     await database.runAsync(
-      `INSERT OR REPLACE INTO user_nutrition_profiles (id, height, heightUnit, weight, weightUnit, targetWeight, age, gender, activityLevel, goal, weeklyGoal, dailyCalorieTarget, dailyProteinTarget, dailyCarbsTarget, dailyFatTarget, dailyFiberTarget, dailyWaterTarget, manualMacros, updatedAt) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [profile.id, profile.height, profile.heightUnit, profile.weight, profile.weightUnit, profile.targetWeight, profile.age, profile.gender, profile.activityLevel, profile.goal, profile.weeklyGoal, profile.dailyCalorieTarget, profile.dailyProteinTarget, profile.dailyCarbsTarget, profile.dailyFatTarget, profile.dailyFiberTarget, profile.dailyWaterTarget, profile.manualMacros ? 1 : 0, profile.updatedAt]
+      `INSERT OR REPLACE INTO user_nutrition_profiles (id, userId, height, heightUnit, weight, weightUnit, targetWeight, age, gender, activityLevel, goal, weeklyGoal, dailyCalorieTarget, dailyProteinTarget, dailyCarbsTarget, dailyFatTarget, dailyWaterTarget, dailyFiberTarget, manualMacros, updatedAt) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [profile.id, currentUserId || '', profile.height, profile.heightUnit, profile.weight, profile.weightUnit, profile.targetWeight, profile.age, profile.gender, profile.activityLevel, profile.goal, profile.weeklyGoal, profile.dailyCalorieTarget, profile.dailyProteinTarget, profile.dailyCarbsTarget, profile.dailyFatTarget, profile.dailyWaterTarget, profile.dailyFiberTarget ?? 25, profile.manualMacros ? 1 : 0, profile.updatedAt]
     );
   },
 };
