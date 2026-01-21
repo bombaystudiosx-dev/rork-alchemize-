@@ -2,8 +2,8 @@ import React from 'react';
 import { View, StyleSheet, ScrollView, ImageBackground, TouchableOpacity, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { Lock, CreditCard, PiggyBank, ChevronRight, Eye, EyeOff } from 'lucide-react-native';
-import { financialNoteDb } from '@/lib/database';
+import { Lock, CreditCard, PiggyBank, ChevronRight, Eye, EyeOff, Receipt, Plus } from 'lucide-react-native';
+import { financialNoteDb, financialExpenseDb } from '@/lib/database';
 
 export default function FinancialTrackerScreen() {
   const router = useRouter();
@@ -12,6 +12,11 @@ export default function FinancialTrackerScreen() {
   const { data: notesData } = useQuery({
     queryKey: ['financial-notes'],
     queryFn: () => financialNoteDb.get(),
+  });
+
+  const { data: expenses } = useQuery({
+    queryKey: ['financial-expenses'],
+    queryFn: () => financialExpenseDb.getAll(),
   });
 
   const navigateToNotes = (section: string) => {
@@ -162,6 +167,54 @@ export default function FinancialTrackerScreen() {
               <ChevronRight color="#8B5CF6" size={18} />
             </View>
           </TouchableOpacity>
+
+          <View style={styles.sectionHeader}>
+            <Receipt color="#F59E0B" size={24} />
+            <Text style={styles.sectionTitle}>Expenses</Text>
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => router.push('/financial/expense-add' as any)}
+              activeOpacity={0.7}
+            >
+              <Plus color="#8B5CF6" size={20} />
+              <Text style={styles.addButtonText}>Add</Text>
+            </TouchableOpacity>
+          </View>
+
+          {expenses && expenses.length > 0 ? (
+            expenses.map((expense) => (
+              <TouchableOpacity
+                key={expense.id}
+                style={styles.expenseCard}
+                onPress={() => router.push(`/financial/expense-edit?id=${expense.id}` as any)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.expenseHeader}>
+                  <Text style={styles.expenseName}>{expense.expenseName}</Text>
+                  <Text style={styles.expenseAmount}>
+                    ${expense.expenseAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  </Text>
+                </View>
+                <View style={styles.expenseDetails}>
+                  <View style={styles.frequencyBadge}>
+                    <Text style={styles.frequencyText}>{expense.frequency}</Text>
+                  </View>
+                  <Text style={styles.expenseCategory}>{expense.expenseCategory}</Text>
+                </View>
+                {expense.notes ? (
+                  <Text style={styles.expenseNotes} numberOfLines={1}>
+                    {expense.notes}
+                  </Text>
+                ) : null}
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={styles.emptyExpenses}>
+              <Receipt color="rgba(255, 255, 255, 0.3)" size={48} />
+              <Text style={styles.emptyExpensesText}>No expenses tracked yet</Text>
+              <Text style={styles.emptyExpensesSubtext}>Tap "Add" to track your bills and expenses</Text>
+            </View>
+          )}
         </ScrollView>
       </ImageBackground>
     </View>
@@ -295,5 +348,103 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: '#8B5CF6',
     marginRight: 4,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 32,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: '700' as const,
+    color: '#fff',
+    marginLeft: 12,
+    flex: 1,
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+  },
+  addButtonText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#8B5CF6',
+    marginLeft: 4,
+  },
+  expenseCard: {
+    backgroundColor: 'rgba(26, 26, 26, 0.85)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  expenseHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  expenseName: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#fff',
+    flex: 1,
+  },
+  expenseAmount: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: '#F59E0B',
+    marginLeft: 12,
+  },
+  expenseDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  frequencyBadge: {
+    backgroundColor: 'rgba(139, 92, 246, 0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  frequencyText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: '#8B5CF6',
+    textTransform: 'capitalize',
+  },
+  expenseCategory: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.5)',
+    textTransform: 'capitalize',
+  },
+  expenseNotes: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+  emptyExpenses: {
+    alignItems: 'center',
+    paddingVertical: 48,
+  },
+  emptyExpensesText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: 'rgba(255, 255, 255, 0.5)',
+    marginTop: 16,
+  },
+  emptyExpensesSubtext: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.35)',
+    marginTop: 4,
   },
 });

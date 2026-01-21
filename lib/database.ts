@@ -187,6 +187,7 @@ export async function initDatabase() {
       expenseCategory TEXT NOT NULL,
       expenseDate INTEGER NOT NULL,
       notes TEXT NOT NULL DEFAULT '',
+      frequency TEXT NOT NULL DEFAULT 'one-time',
       createdAt INTEGER NOT NULL
     );
     
@@ -635,6 +636,17 @@ async function runMigrations(database: SQLite.SQLiteDatabase) {
       }
     }
     
+    const expensesHasFrequency = await checkColumn('financial_expenses', 'frequency');
+    if (!expensesHasFrequency) {
+      console.log('[Database] Adding frequency column to financial_expenses');
+      try {
+        await database.execAsync('ALTER TABLE financial_expenses ADD COLUMN frequency TEXT NOT NULL DEFAULT "one-time"');
+        console.log('[Database] Successfully added frequency column');
+      } catch (e) {
+        console.log('[Database] frequency column may already exist:', e);
+      }
+    }
+    
     console.log('[Database] Migrations completed');
   } catch (error) {
     console.error('[Database] Migration error:', error);
@@ -1013,8 +1025,18 @@ export const financialExpenseDb = {
     const userId = getCurrentUserId();
     if (!userId) throw new Error('User not authenticated');
     await database.runAsync(
-      'INSERT INTO financial_expenses (id, userId, expenseName, expenseAmount, expenseCategory, expenseDate, notes, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [expense.id, userId, expense.expenseName, expense.expenseAmount, expense.expenseCategory, expense.expenseDate, expense.notes, expense.createdAt]
+      'INSERT INTO financial_expenses (id, userId, expenseName, expenseAmount, expenseCategory, expenseDate, notes, frequency, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [expense.id, userId, expense.expenseName, expense.expenseAmount, expense.expenseCategory, expense.expenseDate, expense.notes, expense.frequency, expense.createdAt]
+    );
+  },
+  
+  async update(expense: FinancialExpense): Promise<void> {
+    const database = getDatabase();
+    const userId = getCurrentUserId();
+    if (!userId) return;
+    await database.runAsync(
+      'UPDATE financial_expenses SET expenseName = ?, expenseAmount = ?, expenseCategory = ?, expenseDate = ?, notes = ?, frequency = ? WHERE id = ? AND userId = ?',
+      [expense.expenseName, expense.expenseAmount, expense.expenseCategory, expense.expenseDate, expense.notes, expense.frequency, expense.id, userId]
     );
   },
   

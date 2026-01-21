@@ -110,6 +110,7 @@ export interface FinancialExpense {
   expenseCategory: 'bills' | 'business' | 'personal' | 'food' | 'transport' | 'entertainment' | 'shopping' | 'health' | 'education' | 'other';
   expenseDate: number;
   notes: string;
+  frequency: 'one-time' | 'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'yearly';
   createdAt: number;
 }
 
