@@ -32,7 +32,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     user: null,
     token: null,
   });
-  const [isLoading, setIsLoading] = useState(true);
   const [rememberMe, setRememberMeState] = useState(false);
 
   useEffect(() => {
@@ -69,7 +68,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         console.warn('[Auth] Corrupted auth data detected, clearing all');
         await AsyncStorage.multiRemove([AUTH_STORAGE_KEY, USERS_STORAGE_KEY, REMEMBER_ME_KEY]).catch(() => {});
       } else {
-        console.log('[Auth] No stored auth found, user needs to login');
+        console.log('[Auth] No stored auth found');
       }
 
       if (storedRememberMe === 'true') {
@@ -78,9 +77,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     } catch (error) {
       console.error('[Auth] Error loading auth state:', error);
       await AsyncStorage.multiRemove([AUTH_STORAGE_KEY, USERS_STORAGE_KEY, REMEMBER_ME_KEY]).catch(() => {});
-    } finally {
-      console.log('[Auth] Loading complete');
-      setIsLoading(false);
     }
   };
 
@@ -178,8 +174,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   };
 
-
-
   const logout = async () => {
     try {
       console.log('[Auth] Logging out');
@@ -202,7 +196,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     user: authState.user,
     token: authState.token,
     isAuthenticated: !!authState.user,
-    isLoading,
+    isLoading: false,
     rememberMe,
     login,
     signup,

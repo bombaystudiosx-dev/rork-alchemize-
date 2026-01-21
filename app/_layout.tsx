@@ -1,15 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack, useRouter, useSegments } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect, useState } from "react";
-import { Platform, View, ActivityIndicator, StyleSheet } from "react-native";
+import { Stack } from "expo-router";
+import React from "react";
+import { StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { initDatabase } from "@/lib/database";
-import { preloadCriticalImages } from "@/constants/image-config";
 import { ThemeProvider } from "@/contexts/theme-context";
-import { AuthProvider, useAuth } from "@/contexts/auth-context";
-
-SplashScreen.preventAutoHideAsync();
+import { AuthProvider } from "@/contexts/auth-context";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,45 +16,6 @@ const queryClient = new QueryClient({
 });
 
 function RootLayoutNav() {
-  const { isAuthenticated, isLoading } = useAuth();
-  const segments = useSegments();
-  const router = useRouter();
-  const [isNavigating, setIsNavigating] = useState(false);
-
-  useEffect(() => {
-    if (isLoading || isNavigating) {
-      console.log('[Navigation] Waiting...', { isLoading, isNavigating });
-      return;
-    }
-
-    const inAuthGroup = segments[0] === 'auth';
-    console.log('[Navigation] Checking auth:', { isAuthenticated, inAuthGroup, segments: segments[0] });
-
-    if (!isAuthenticated && !inAuthGroup) {
-      console.log('[Navigation] Redirecting to auth...');
-      setIsNavigating(true);
-      setTimeout(() => {
-        router.replace('/auth' as any);
-        setIsNavigating(false);
-      }, 100);
-    } else if (isAuthenticated && inAuthGroup) {
-      console.log('[Navigation] Redirecting to home...');
-      setIsNavigating(true);
-      setTimeout(() => {
-        router.replace('/');
-        setIsNavigating(false);
-      }, 100);
-    }
-  }, [isAuthenticated, isLoading, segments, router, isNavigating]);
-
-  if (isLoading) {
-    return (
-      <View style={layoutStyles.loadingContainer}>
-        <ActivityIndicator size="large" color="#8b5cf6" />
-      </View>
-    );
-  }
-
   return (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
       <Stack.Screen name="auth" options={{ title: "Welcome", headerShown: false }} />
@@ -93,67 +49,19 @@ function RootLayoutNav() {
       <Stack.Screen name="affirmations/play" options={{ title: "Play Mode", headerShown: false, presentation: "fullScreenModal" }} />
       <Stack.Screen name="settings" options={{ title: "Settings" }} />
       <Stack.Screen name="quick-add" options={{ title: "Quick Add", presentation: "modal" }} />
+      <Stack.Screen name="appointments/index" options={{ title: "Appointments" }} />
+      <Stack.Screen name="appointments/add" options={{ title: "Add Appointment", presentation: "modal" }} />
+      <Stack.Screen name="pwa-install-prompt" options={{ title: "Install App", presentation: "modal" }} />
     </Stack>
   );
 }
 
 export default function RootLayout() {
-  const [isReady, setIsReady] = useState(false);
-
-  useEffect(() => {
-    const initialize = async () => {
-      try {
-        console.log('[App] Starting initialization...');
-        
-        if (Platform.OS !== 'web') {
-          try {
-            await initDatabase();
-            console.log('[App] Database initialized successfully');
-          } catch (dbError) {
-            console.warn('[App] Database init warning (continuing):', dbError);
-          }
-        } else {
-          console.log('[App] Web platform - skipping database init');
-        }
-        
-        try {
-          await preloadCriticalImages();
-          console.log('[App] Images preloaded successfully');
-        } catch (imgError) {
-          console.warn('[App] Image preload warning (continuing):', imgError);
-        }
-        
-        console.log('[App] Initialization complete');
-        setIsReady(true);
-      } catch (error) {
-        console.error('[App] Initialization error (recovering):', error);
-        setIsReady(true);
-      } finally {
-        try {
-          await SplashScreen.hideAsync();
-          console.log('[App] Splash screen hidden');
-        } catch (splashError) {
-          console.warn('[App] Splash screen hide warning:', splashError);
-        }
-      }
-    };
-    
-    initialize();
-  }, []);
-
-  if (!isReady) {
-    return (
-      <View style={layoutStyles.loadingContainer}>
-        <ActivityIndicator size="large" color="#8b5cf6" />
-      </View>
-    );
-  }
-
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ThemeProvider>
-          <GestureHandlerRootView style={{ flex: 1 }}>
+          <GestureHandlerRootView style={layoutStyles.root}>
             <RootLayoutNav />
           </GestureHandlerRootView>
         </ThemeProvider>
@@ -163,10 +71,7 @@ export default function RootLayout() {
 }
 
 const layoutStyles = StyleSheet.create({
-  loadingContainer: {
+  root: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#000',
   },
 });
