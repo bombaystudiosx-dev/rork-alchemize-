@@ -39,6 +39,7 @@ const DEFAULT_GOALS = {
   protein: 150,
   carbs: 250,
   fat: 65,
+  fiber: 25,
   water: 2000,
 };
 
@@ -54,6 +55,7 @@ export default function CalorieTrackerScreen() {
   const proteinAnim = useRef(new Animated.Value(0)).current;
   const carbsAnim = useRef(new Animated.Value(0)).current;
   const fatAnim = useRef(new Animated.Value(0)).current;
+  const fiberAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
@@ -115,6 +117,7 @@ export default function CalorieTrackerScreen() {
     protein: profile?.dailyProteinTarget ?? DEFAULT_GOALS.protein,
     carbs: profile?.dailyCarbsTarget ?? DEFAULT_GOALS.carbs,
     fat: profile?.dailyFatTarget ?? DEFAULT_GOALS.fat,
+    fiber: profile?.dailyFiberTarget ?? DEFAULT_GOALS.fiber,
     water: profile?.dailyWaterTarget ?? DEFAULT_GOALS.water,
   }), [profile]);
 
@@ -123,9 +126,10 @@ export default function CalorieTrackerScreen() {
     const protein = foodLogs.reduce((sum, log) => sum + (log.proteinGrams || 0), 0);
     const carbs = foodLogs.reduce((sum, log) => sum + (log.carbGrams || 0), 0);
     const fat = foodLogs.reduce((sum, log) => sum + (log.fatGrams || 0), 0);
+    const fiber = foodLogs.reduce((sum, log) => sum + (log.fiberGrams || 0), 0);
     const water = waterLogs.reduce((sum, log) => sum + log.amount, 0);
     
-    return { calories, protein, carbs, fat, water };
+    return { calories, protein, carbs, fat, fiber, water };
   }, [foodLogs, waterLogs]);
 
   const mealsByType = useMemo(() => {
@@ -148,6 +152,7 @@ export default function CalorieTrackerScreen() {
     const proteinProgress = Math.min(dailyTotals.protein / goals.protein, 1);
     const carbsProgress = Math.min(dailyTotals.carbs / goals.carbs, 1);
     const fatProgress = Math.min(dailyTotals.fat / goals.fat, 1);
+    const fiberProgress = Math.min(dailyTotals.fiber / goals.fiber, 1);
 
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -184,8 +189,14 @@ export default function CalorieTrackerScreen() {
         delay: 300,
         useNativeDriver: false,
       }),
+      Animated.timing(fiberAnim, {
+        toValue: fiberProgress,
+        duration: 1000,
+        delay: 400,
+        useNativeDriver: false,
+      }),
     ]).start();
-  }, [dailyTotals, goals, fadeAnim, scaleAnim, calorieAnim, proteinAnim, carbsAnim, fatAnim]);
+  }, [dailyTotals, goals, fadeAnim, scaleAnim, calorieAnim, proteinAnim, carbsAnim, fatAnim, fiberAnim]);
 
   const remaining = goals.calories - dailyTotals.calories;
 
@@ -361,6 +372,13 @@ export default function CalorieTrackerScreen() {
               goal={goals.fat}
               color="#eab308"
               animValue={fatAnim}
+            />
+            <MacroCard
+              label="Fiber"
+              current={dailyTotals.fiber}
+              goal={goals.fiber}
+              color="#8b5cf6"
+              animValue={fiberAnim}
             />
           </View>
         </View>
@@ -680,13 +698,15 @@ const styles = StyleSheet.create({
   },
   macrosRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
   },
   macroCard: {
-    flex: 1,
+    width: '48%',
     backgroundColor: 'rgba(255,255,255,0.04)',
     borderRadius: 16,
     padding: 14,
+    marginBottom: 2,
   },
   macroCardHeader: {
     flexDirection: 'row',
