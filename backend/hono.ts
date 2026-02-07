@@ -10,9 +10,17 @@ const app = new Hono();
 
 app.use("*", cors());
 
-initSurrealDB().catch((error) => {
-  console.error('[Hono] Failed to initialize SurrealDB:', error);
-});
+initSurrealDB()
+  .then((db) => {
+    if (db) {
+      console.log('[Hono] SurrealDB initialized successfully');
+    } else {
+      console.log('[Hono] Running without remote database sync');
+    }
+  })
+  .catch((error) => {
+    console.warn('[Hono] SurrealDB initialization failed, continuing without remote sync:', error);
+  });
 
 app.use(
   "/api/trpc/*",
