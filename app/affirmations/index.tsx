@@ -120,6 +120,12 @@ export default function AffirmationsScreen() {
         </View>
       )}
 
+      <View style={styles.instructionCard}>
+        <Text style={styles.instructionText}>
+          It is recommended to say these for at least 60-90 days that is how long your subconscious mind takes to accept beliefs. However, by all means say them until reality reflects them
+        </Text>
+      </View>
+
       {allAffirmations.length > 0 && (
         <TouchableOpacity
           style={styles.playButton}
@@ -205,6 +211,22 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(147, 51, 234, 0.2)',
     borderWidth: 2,
     borderColor: 'rgba(168, 85, 247, 0.4)',
+  },
+  instructionCard: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 215, 0, 0.3)',
+  },
+  instructionText: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: '#fbbf24',
+    textAlign: 'center' as const,
+    fontWeight: '500' as const,
   },
   todayLabel: {
     fontSize: 12,

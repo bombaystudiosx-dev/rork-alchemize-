@@ -217,7 +217,7 @@ export default function GratitudeJournalScreen() {
 
         <View style={styles.quote}>
           <Text style={[styles.quoteText, { color: colors.textSecondary }]}>
-            &quot;Even on hard days, there&apos;s always something to be grateful for.&quot;
+            &quot;Even on hard days, there&apos;s always something to be grateful for. Focus on the good.&quot;
           </Text>
         </View>
 
