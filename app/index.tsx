@@ -202,14 +202,7 @@ function UnifiedCalendar({ events, selectedWeekStart, onWeekChange, onDayPress, 
     return '#6366f1';
   };
   
-  const monthTextStyle = isDark ? calendarStyles.monthTextDark : calendarStyles.monthTextLight;
-  const dayNameStyle = isDark ? calendarStyles.dayNameDark : calendarStyles.dayNameLight;
-  const dayTextStyle = isDark ? calendarStyles.dayTextDark : calendarStyles.dayTextLight;
-  const expandedTitleStyle = isDark ? calendarStyles.expandedTitleDark : calendarStyles.expandedTitleLight;
-  const expandedEmptyTextStyle = isDark ? calendarStyles.expandedEmptyTextDark : calendarStyles.expandedEmptyTextLight;
-  const expandedEventTitleStyle = isDark ? calendarStyles.expandedEventTitleDark : calendarStyles.expandedEventTitleLight;
-  const expandedEventDateStyle = isDark ? calendarStyles.expandedEventDateDark : calendarStyles.expandedEventDateLight;
-  const expandedEventCountStyle = isDark ? calendarStyles.expandedEventCountDark : calendarStyles.expandedEventCountLight;
+  const calStyle = isDark ? calendarStyles.dark : calendarStyles.light;
   
   const allWeekEvents = weekDays.flatMap((day) => {
     const dateStr = localDateKey(day);
@@ -227,7 +220,7 @@ function UnifiedCalendar({ events, selectedWeekStart, onWeekChange, onDayPress, 
         <TouchableOpacity onPress={goToPreviousWeek} style={calendarStyles.navButton}>
           <ChevronLeft size={20} color={isDark ? '#a78bfa' : '#8b5cf6'} />
         </TouchableOpacity>
-        <Text style={[calendarStyles.monthText, monthTextStyle]}>
+        <Text style={[calendarStyles.monthText, calStyle.monthText]}>
           {selectedWeekStart.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
         </Text>
         <View style={calendarStyles.headerRight}>
@@ -251,7 +244,7 @@ function UnifiedCalendar({ events, selectedWeekStart, onWeekChange, onDayPress, 
           
           return (
             <TouchableOpacity key={index} style={calendarStyles.dayItem} onPress={() => onDayPress(day)} activeOpacity={0.7}>
-              <Text style={[calendarStyles.dayName, dayNameStyle]}>
+              <Text style={[calendarStyles.dayName, calStyle.dayName]}>
                 {day.toLocaleDateString('en-US', { weekday: 'narrow' })}
               </Text>
               <View style={[
@@ -261,7 +254,7 @@ function UnifiedCalendar({ events, selectedWeekStart, onWeekChange, onDayPress, 
               ]}>
                 <Text style={[
                   calendarStyles.dayText,
-                  dayTextStyle,
+                  calStyle.dayText,
                   isToday && calendarStyles.todayText
                 ]}>
                   {day.getDate()}
@@ -283,7 +276,7 @@ function UnifiedCalendar({ events, selectedWeekStart, onWeekChange, onDayPress, 
       {isExpanded && (
         <View style={calendarStyles.expandedSection}>
           <View style={calendarStyles.expandedHeader}>
-            <Text style={[calendarStyles.expandedTitle, expandedTitleStyle]}>
+            <Text style={[calendarStyles.expandedTitle, calStyle.expandedTitle]}>
               Week Activities ({allWeekEvents.length})
             </Text>
           </View>
@@ -294,7 +287,7 @@ function UnifiedCalendar({ events, selectedWeekStart, onWeekChange, onDayPress, 
           >
             {allWeekEvents.length === 0 ? (
               <View style={calendarStyles.expandedEmpty}>
-                <Text style={[calendarStyles.expandedEmptyText, expandedEmptyTextStyle]}>
+                <Text style={[calendarStyles.expandedEmptyText, calStyle.expandedEmptyText]}>
                   No activities this week
                 </Text>
               </View>
@@ -329,14 +322,14 @@ function UnifiedCalendar({ events, selectedWeekStart, onWeekChange, onDayPress, 
                     <View style={[calendarStyles.expandedEventIndicator, { backgroundColor: eventColor }]} />
                     <View style={calendarStyles.expandedEventContent}>
                       <View style={calendarStyles.expandedEventHeader}>
-                        <Text style={[calendarStyles.expandedEventTitle, expandedEventTitleStyle]}>
+                        <Text style={[calendarStyles.expandedEventTitle, calStyle.expandedEventTitle]}>
                           {eventTitle}
                         </Text>
-                        <Text style={[calendarStyles.expandedEventDate, expandedEventDateStyle]}>
+                        <Text style={[calendarStyles.expandedEventDate, calStyle.expandedEventDate]}>
                           {event.dayOfWeek} {event.dayNumber}
                         </Text>
                       </View>
-                      <Text style={[calendarStyles.expandedEventCount, expandedEventCountStyle]}>
+                      <Text style={[calendarStyles.expandedEventCount, calStyle.expandedEventCount]}>
                         {event.count} {event.count === 1 ? 'entry' : 'entries'}
                       </Text>
                     </View>
@@ -483,9 +476,9 @@ export default function HomeScreen() {
 
   const getGreeting = () => {
     const hour = currentTime.getHours();
-    if (hour < 12) return '⚡ GOOD MORNING ⚡';
-    if (hour < 18) return '⚡ GOOD AFTERNOON ⚡';
-    return '⚡ GOOD EVENING ⚡';
+    if (hour < 12) return '✨ GOOD MORNING ✨';
+    if (hour < 18) return '✨ GOOD AFTERNOON ✨';
+    return '✨ GOOD EVENING ✨';
   };
 
   const formatTime = () => {
@@ -936,53 +929,42 @@ const calendarStyles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
   },
-  monthTextLight: {
-    color: '#fff',
+  light: {
+    monthText: {
+      color: '#fff',
+    },
+    dayName: {
+      color: 'rgba(255, 255, 255, 0.8)',
+    },
+    dayText: {
+      color: '#fff',
+    },
   },
-  dayNameLight: {
-    color: 'rgba(255, 255, 255, 0.8)',
-  },
-  dayTextLight: {
-    color: '#fff',
-  },
-  expandedTitleLight: {
-    color: '#fff',
-  },
-  expandedEmptyTextLight: {
-    color: 'rgba(255,255,255,0.5)',
-  },
-  expandedEventTitleLight: {
-    color: '#fff',
-  },
-  expandedEventDateLight: {
-    color: 'rgba(255,255,255,0.6)',
-  },
-  expandedEventCountLight: {
-    color: 'rgba(255,255,255,0.5)',
-  },
-  monthTextDark: {
-    color: '#fff',
-  },
-  dayNameDark: {
-    color: 'rgba(255, 255, 255, 0.7)',
-  },
-  dayTextDark: {
-    color: '#fff',
-  },
-  expandedTitleDark: {
-    color: '#fff',
-  },
-  expandedEmptyTextDark: {
-    color: 'rgba(255,255,255,0.5)',
-  },
-  expandedEventTitleDark: {
-    color: '#fff',
-  },
-  expandedEventDateDark: {
-    color: 'rgba(255,255,255,0.6)',
-  },
-  expandedEventCountDark: {
-    color: 'rgba(255,255,255,0.5)',
+  dark: {
+    monthText: {
+      color: '#fff',
+    },
+    dayName: {
+      color: 'rgba(255, 255, 255, 0.7)',
+    },
+    dayText: {
+      color: '#fff',
+    },
+    expandedTitle: {
+      color: '#fff',
+    },
+    expandedEmptyText: {
+      color: 'rgba(255,255,255,0.5)',
+    },
+    expandedEventTitle: {
+      color: '#fff',
+    },
+    expandedEventDate: {
+      color: 'rgba(255,255,255,0.6)',
+    },
+    expandedEventCount: {
+      color: 'rgba(255,255,255,0.5)',
+    },
   },
   expandedSection: {
     marginTop: 16,
