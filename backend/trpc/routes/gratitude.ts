@@ -5,6 +5,7 @@ import { getSurrealDB } from '../../lib/surrealdb';
 export const gratitudeRouter = createTRPCRouter({
   getAll: protectedProcedure.query(async ({ ctx }) => {
     const db = await getSurrealDB();
+    if (!db) return [];
     const result = await db.query(
       'SELECT * FROM gratitude_entries WHERE userId = $userId ORDER BY entryDate DESC',
       { userId: ctx.user.id }
@@ -17,6 +18,7 @@ export const gratitudeRouter = createTRPCRouter({
     .input(z.object({ date: z.number() }))
     .query(async ({ ctx, input }) => {
       const db = await getSurrealDB();
+      if (!db) return null;
       const result = await db.query(
         'SELECT * FROM gratitude_entries WHERE entryDate = $date AND userId = $userId',
         { date: input.date, userId: ctx.user.id }
@@ -37,6 +39,7 @@ export const gratitudeRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const db = await getSurrealDB();
+      if (!db) throw new Error('Database connection not available');
       const id = `gratitude_entries:${Date.now()}_${Math.random().toString(36).substring(7)}`;
       
       const entry = {
@@ -61,6 +64,7 @@ export const gratitudeRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const db = await getSurrealDB();
+      if (!db) throw new Error('Database connection not available');
       
       await db.query(
         `UPDATE ${input.id} SET 
@@ -81,6 +85,7 @@ export const gratitudeRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const db = await getSurrealDB();
+      if (!db) throw new Error('Database connection not available');
       
       await db.query(
         `DELETE ${input.id} WHERE userId = $userId`,

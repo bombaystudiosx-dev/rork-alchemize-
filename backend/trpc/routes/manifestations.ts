@@ -19,6 +19,7 @@ interface Manifestation {
 export const manifestationsRouter = createTRPCRouter({
   getAll: protectedProcedure.query(async ({ ctx }) => {
     const db = await getSurrealDB();
+    if (!db) return [];
     const result = await db.query(
       'SELECT * FROM manifestations WHERE userId = $userId ORDER BY createdAt DESC',
       { userId: ctx.user.id }
@@ -31,6 +32,7 @@ export const manifestationsRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const db = await getSurrealDB();
+      if (!db) return null;
       const result = await db.query(
         'SELECT * FROM manifestations WHERE id = $id AND userId = $userId',
         { id: input.id, userId: ctx.user.id }
@@ -54,6 +56,7 @@ export const manifestationsRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const db = await getSurrealDB();
+      if (!db) throw new Error('Database connection not available');
       const id = `manifestations:${Date.now()}_${Math.random().toString(36).substring(7)}`;
       
       const manifestation = {
@@ -83,6 +86,7 @@ export const manifestationsRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const db = await getSurrealDB();
+      if (!db) throw new Error('Database connection not available');
       
       await db.query(
         `UPDATE ${input.id} SET 
@@ -109,6 +113,7 @@ export const manifestationsRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const db = await getSurrealDB();
+      if (!db) throw new Error('Database connection not available');
       
       await db.query(
         `DELETE ${input.id} WHERE userId = $userId`,
