@@ -174,6 +174,42 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   };
 
+  const updateUserName = async (newName: string) => {
+    try {
+      if (!authState.user) {
+        return { success: false, error: 'No user logged in' };
+      }
+
+      console.log('[Auth] Updating user name:', newName);
+      
+      const usersData = await AsyncStorage.getItem(USERS_STORAGE_KEY);
+      const users: StoredUser[] = usersData ? JSON.parse(usersData) : [];
+      
+      const userIndex = users.findIndex(u => u.id === authState.user!.id);
+      if (userIndex !== -1) {
+        users[userIndex].name = newName;
+        await AsyncStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+      }
+
+      const updatedAuthState: AuthState = {
+        ...authState,
+        user: {
+          ...authState.user,
+          name: newName,
+        },
+      };
+      
+      setAuthState(updatedAuthState);
+      await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedAuthState));
+
+      console.log('[Auth] User name updated successfully');
+      return { success: true };
+    } catch (error: any) {
+      console.error('[Auth] Update user name error:', error);
+      return { success: false, error: error.message || 'Update failed' };
+    }
+  };
+
   const logout = async () => {
     try {
       console.log('[Auth] Logging out');
@@ -201,5 +237,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     login,
     signup,
     logout,
+    updateUserName,
   };
 });

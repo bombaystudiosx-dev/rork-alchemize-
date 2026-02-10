@@ -74,24 +74,38 @@ const ALL_FEATURE_CARDS: FeatureCard[] = [
   },
   {
     id: 'financial',
-    title: 'Financial Tracker',
+    title: 'Financial',
     subtitle: 'Organize Finances',
     image: OPTIMIZED_IMAGE_URLS.financialCard,
     route: '/financial',
   },
   {
-    id: 'fitness',
-    title: 'Fitness Tracker',
-    subtitle: 'Transform your body and energy',
-    image: OPTIMIZED_IMAGE_URLS.fitnessCard,
-    route: '/fitness',
-  },
-  {
     id: 'calorie',
-    title: 'Calorie Tracker',
+    title: 'Calorie',
     subtitle: 'AI food recognition, macros & meal planning',
     image: OPTIMIZED_IMAGE_URLS.calorieCard,
     route: '/calorie',
+  },
+  {
+    id: 'todos',
+    title: 'To-Do',
+    subtitle: 'Shape your day, one small win at a time.',
+    image: OPTIMIZED_IMAGE_URLS.todosCard,
+    route: '/todos',
+  },
+  {
+    id: 'gratitude',
+    title: 'Gratitude',
+    subtitle: 'Gratitude is the ability to experience life as a gift.',
+    image: OPTIMIZED_IMAGE_URLS.gratitudeCard,
+    route: '/gratitude',
+  },
+  {
+    id: 'fitness',
+    title: 'Fitness',
+    subtitle: 'Transform your body and energy',
+    image: OPTIMIZED_IMAGE_URLS.fitnessCard,
+    route: '/fitness',
   },
   {
     id: 'appointments',
@@ -99,27 +113,6 @@ const ALL_FEATURE_CARDS: FeatureCard[] = [
     subtitle: 'Organize your time with intention',
     image: OPTIMIZED_IMAGE_URLS.appointmentsCard,
     route: '/appointments',
-  },
-  {
-    id: 'todos',
-    title: 'To-Do List',
-    subtitle: 'Shape your day, one small win at a time.',
-    image: OPTIMIZED_IMAGE_URLS.todosCard,
-    route: '/todos',
-  },
-  {
-    id: 'gratitude',
-    title: 'Gratitude Journal',
-    subtitle: 'Gratitude is the ability to experience life as a gift.',
-    image: OPTIMIZED_IMAGE_URLS.gratitudeCard,
-    route: '/gratitude',
-  },
-  {
-    id: 'settings',
-    title: 'Settings',
-    subtitle: 'Customize your Alchemize experience',
-    image: OPTIMIZED_IMAGE_URLS.settingsCard,
-    route: '/settings',
   },
 ];
 
@@ -476,9 +469,9 @@ export default function HomeScreen() {
 
   const getGreeting = () => {
     const hour = currentTime.getHours();
-    if (hour < 12) return '✨ GOOD MORNING ✨';
-    if (hour < 18) return '✨ GOOD AFTERNOON ✨';
-    return '✨ GOOD EVENING ✨';
+    if (hour < 12) return '⚡ GOOD MORNING ⚡';
+    if (hour < 18) return '⚡ GOOD AFTERNOON ⚡';
+    return '⚡ GOOD EVENING ⚡';
   };
 
   const formatTime = () => {
@@ -635,51 +628,51 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#0f0520', '#1a0f3a', '#2d1b69', '#1e1147', '#0f0520']}
-        locations={[0, 0.25, 0.5, 0.75, 1]}
+        colors={['#1a0b2e', '#2d1b4e', '#3d2463', '#1a0b2e']}
         style={styles.background}
         start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
+        end={{ x: 1, y: 1 }}
       />
       
       <View style={styles.decorativeElements}>
-        <View style={[styles.moon, { top: 140, left: -50 }]}>
+        <View style={[styles.moon, { top: 120, left: -40 }]}>
           <LinearGradient
-            colors={['#4a90e2', '#6fb1ff', '#89c4ff']}
+            colors={['#4a90e2', '#6fb1ff']}
             style={styles.moonGradient}
           >
             <View style={styles.moonCrescent} />
           </LinearGradient>
         </View>
         
-        {[...Array(20)].map((_, i) => (
+        {[...Array(8)].map((_, i) => (
           <View
             key={`star-${i}`}
             style={[
               styles.star,
               {
-                top: 80 + Math.random() * (SCREEN_HEIGHT - 200),
+                top: 100 + Math.random() * 300,
                 left: Math.random() * SCREEN_WIDTH,
-                opacity: 0.5 + Math.random() * 0.5,
-                width: i % 3 === 0 ? 4 : 3,
-                height: i % 3 === 0 ? 4 : 3,
+                opacity: 0.3 + Math.random() * 0.7,
               },
             ]}
           />
         ))}
         
-        {[...Array(8)].map((_, i) => (
+        {[...Array(6)].map((_, i) => (
           <View
-            key={`sparkle-${i}`}
+            key={`candle-${i}`}
             style={[
-              styles.sparkle,
+              styles.candle,
               {
-                top: 120 + Math.random() * (SCREEN_HEIGHT - 300),
-                left: Math.random() * SCREEN_WIDTH,
-                opacity: 0.6 + Math.random() * 0.4,
+                top: 150 + Math.random() * (SCREEN_HEIGHT - 400),
+                left: i < 3 ? Math.random() * (SCREEN_WIDTH * 0.2) : SCREEN_WIDTH - Math.random() * (SCREEN_WIDTH * 0.2),
+                opacity: 0.4 + Math.random() * 0.4,
               },
             ]}
-          />
+          >
+            <View style={styles.candleBody} />
+            <View style={styles.candleFlame} />
+          </View>
         ))}
       </View>
 
@@ -700,15 +693,15 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <View style={[styles.greetingSection, { paddingTop: insets.top + 56 }]}>
+      <View style={[styles.greetingSection, { paddingTop: insets.top + 60 }]}>
         <Text style={styles.greeting}>{getGreeting()}</Text>
         <LinearGradient
-          colors={['#ec4899', '#f97316']}
+          colors={['#ec4899', '#8b5cf6']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.usernameGradient}
         >
-          <Text style={styles.username}>{user?.name || 'Cali_Bombay'}</Text>
+          <Text style={styles.username}>{user?.name || 'User'}</Text>
         </LinearGradient>
         <Text style={styles.tagline}>Transform your reality by transforming yourself</Text>
       </View>
@@ -784,10 +777,10 @@ export default function HomeScreen() {
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={['#a855f7', '#8b5cf6']}
+          colors={['#8b5cf6', '#6d28d9']}
           style={styles.fabGradient}
         >
-          <Sparkles size={28} color="#fff" fill="#fff" />
+          <Text style={styles.fabIcon}>+</Text>
         </LinearGradient>
       </TouchableOpacity>
 
@@ -1051,27 +1044,23 @@ const styles = StyleSheet.create({
   },
   moon: {
     position: 'absolute',
-    width: 200,
-    height: 200,
+    width: 180,
+    height: 180,
   },
   moonGradient: {
     width: '100%',
     height: '100%',
-    borderRadius: 100,
-    opacity: 0.7,
-    shadowColor: '#4a90e2',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 30,
+    borderRadius: 90,
+    opacity: 0.6,
   },
   moonCrescent: {
     position: 'absolute',
     right: 0,
     top: 0,
-    width: 155,
-    height: 200,
-    backgroundColor: '#0f0520',
-    borderRadius: 100,
+    width: 140,
+    height: 180,
+    backgroundColor: '#1a0b2e',
+    borderRadius: 90,
   },
   star: {
     position: 'absolute',
@@ -1081,23 +1070,31 @@ const styles = StyleSheet.create({
     borderRadius: 1.5,
     shadowColor: '#fff',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 6,
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
   },
-  sparkle: {
+  candle: {
     position: 'absolute',
+    alignItems: 'center',
+  },
+  candleBody: {
     width: 8,
-    height: 8,
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: '#fbbf24',
-    transform: [{ rotate: '45deg' }],
+    height: 40,
+    backgroundColor: '#8b5cf6',
+    borderRadius: 4,
+    opacity: 0.6,
+  },
+  candleFlame: {
+    width: 12,
+    height: 16,
+    backgroundColor: '#fbbf24',
+    borderRadius: 6,
+    marginTop: -8,
     shadowColor: '#fbbf24',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
-    shadowRadius: 8,
+    shadowRadius: 12,
   },
-
   topBar: {
     position: 'absolute',
     top: 0,
@@ -1139,17 +1136,15 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
   greeting: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    fontStyle: 'italic' as const,
+    fontSize: 22,
+    fontWeight: '700' as const,
     color: '#fbbf24',
-    letterSpacing: 1.5,
-    textShadowColor: 'rgba(251, 191, 36, 0.8)',
+    letterSpacing: 2,
+    textShadowColor: 'rgba(251, 191, 36, 0.6)',
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 12,
-    marginBottom: 8,
+    textShadowRadius: 16,
+    marginBottom: 12,
     textAlign: 'center',
-    textTransform: 'uppercase' as const,
   },
   usernameGradient: {
     borderRadius: 8,
@@ -1157,28 +1152,28 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   username: {
-    fontSize: 48,
-    fontWeight: '800' as const,
+    fontSize: 42,
+    fontWeight: '700' as const,
     color: '#fff',
-    letterSpacing: 1.5,
+    letterSpacing: 1,
     textAlign: 'center',
     includeFontPadding: false,
-    textShadowColor: 'rgba(236, 72, 153, 0.6)',
-    textShadowOffset: { width: 0, height: 4 },
-    textShadowRadius: 16,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
   },
   tagline: {
-    fontSize: 15,
+    fontSize: 16,
     fontStyle: 'italic' as const,
     color: '#fbbf24',
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
     textAlign: 'center',
-    lineHeight: 22,
-    marginTop: 10,
-    paddingHorizontal: 32,
-    textShadowColor: 'rgba(251, 191, 36, 0.5)',
+    lineHeight: 24,
+    marginTop: 12,
+    paddingHorizontal: 24,
+    textShadowColor: 'rgba(251, 191, 36, 0.4)',
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
+    textShadowRadius: 8,
   },
   carouselContainer: {
     flex: 1,
@@ -1200,16 +1195,16 @@ const styles = StyleSheet.create({
   card: {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
-    borderRadius: 24,
+    borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: 'rgba(20, 15, 40, 0.7)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(139, 92, 246, 0.4)',
-    shadowColor: '#a855f7',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.4,
-    shadowRadius: 24,
-    elevation: 12,
+    backgroundColor: 'rgba(30, 20, 50, 0.6)',
+    borderWidth: 1,
+    borderColor: 'rgba(167, 139, 250, 0.3)',
+    shadowColor: '#8b5cf6',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
   },
   cardImageFull: {
     position: 'absolute',
@@ -1260,9 +1255,9 @@ const styles = StyleSheet.create({
   },
   swipeText: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(255,255,255,0.6)',
     fontWeight: '500' as const,
-    letterSpacing: 0.8,
+    letterSpacing: 0.5,
   },
   dotsContainer: {
     flexDirection: 'row',
@@ -1275,12 +1270,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 3,
   },
   dotActive: {
-    backgroundColor: '#a855f7',
+    backgroundColor: '#a78bfa',
     width: 20,
-    shadowColor: '#a855f7',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 8,
   },
   pageCounter: {
     fontSize: 13,
@@ -1291,25 +1282,28 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 30,
     right: 24,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    shadowColor: '#a855f7',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
-    elevation: 10,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    shadowColor: '#8b5cf6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 8,
   },
   fabGradient: {
     width: '100%',
     height: '100%',
-    borderRadius: 32,
+    borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(168, 85, 247, 0.5)',
   },
-
+  fabIcon: {
+    fontSize: 32,
+    color: '#fff',
+    fontWeight: '300' as const,
+    marginTop: -2,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.8)',

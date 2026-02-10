@@ -212,7 +212,7 @@ export default function FinancialTrackerScreen() {
             <View style={styles.emptyExpenses}>
               <Receipt color="rgba(255, 255, 255, 0.3)" size={48} />
               <Text style={styles.emptyExpensesText}>No expenses tracked yet</Text>
-              <Text style={styles.emptyExpensesSubtext}>Tap &quot;Add&quot; to track your bills and expenses</Text>
+              <Text style={styles.emptyExpensesSubtext}>Tap "Add" to track your bills and expenses</Text>
             </View>
           )}
         </ScrollView>

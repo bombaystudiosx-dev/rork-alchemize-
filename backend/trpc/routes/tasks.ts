@@ -5,7 +5,6 @@ import { getSurrealDB } from '../../lib/surrealdb';
 export const tasksRouter = createTRPCRouter({
   getAll: protectedProcedure.query(async ({ ctx }) => {
     const db = await getSurrealDB();
-    if (!db) return [];
     const result = await db.query(
       'SELECT * FROM tasks WHERE userId = $userId ORDER BY orderIndex, createdAt DESC',
       { userId: ctx.user.id }
@@ -26,7 +25,6 @@ export const tasksRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const db = await getSurrealDB();
-      if (!db) throw new Error('Database connection not available');
       const id = `tasks:${Date.now()}_${Math.random().toString(36).substring(7)}`;
       
       const task = {
@@ -63,7 +61,6 @@ export const tasksRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const db = await getSurrealDB();
-      if (!db) throw new Error('Database connection not available');
       
       await db.query(
         `UPDATE ${input.id} SET 
@@ -91,7 +88,6 @@ export const tasksRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const db = await getSurrealDB();
-      if (!db) throw new Error('Database connection not available');
       
       await db.query(
         `DELETE ${input.id} WHERE userId = $userId`,

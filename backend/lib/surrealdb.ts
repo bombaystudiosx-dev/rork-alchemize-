@@ -13,27 +13,20 @@ export async function initSurrealDB() {
     const token = process.env.EXPO_PUBLIC_RORK_DB_TOKEN;
 
     if (!endpoint || !namespace || !token) {
-      console.warn('[SurrealDB] Missing configuration - running without remote sync');
-      return null;
+      throw new Error('Missing SurrealDB configuration');
     }
 
-    await Promise.race([
-      db.connect(endpoint, {
-        namespace,
-        database: namespace,
-        auth: token,
-      }),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Connection timeout')), 10000)
-      )
-    ]);
+    await db.connect(endpoint, {
+      namespace,
+      database: namespace,
+      auth: token,
+    });
 
     console.log('[SurrealDB] Connected successfully');
     return db;
   } catch (error) {
     console.error('[SurrealDB] Connection error:', error);
-    db = null;
-    return null;
+    throw error;
   }
 }
 
@@ -41,7 +34,7 @@ export async function getSurrealDB() {
   if (!db) {
     await initSurrealDB();
   }
-  return db;
+  return db!;
 }
 
 export interface User {

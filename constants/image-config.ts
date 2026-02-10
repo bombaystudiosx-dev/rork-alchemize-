@@ -28,7 +28,6 @@ export const OPTIMIZED_IMAGE_URLS = {
   gratitudeCard: 'https://fv5-4.files.fm/thumb_show.php?i=zqm55g6gzg&view&v=1&PHPSESSID=562f76ae684b8b5e8507e14030e7af116d9c6724',
   fitnessCard: 'https://fv5-4.files.fm/thumb_show.php?i=yeepyn9ydx&view&v=1&PHPSESSID=562f76ae684b8b5e8507e14030e7af116d9c6724',
   appointmentsCard: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/q6xkbpb7jmofbuzgauyqz',
-  settingsCard: 'https://r2-pub.rork.com/generated-images/e7998525-49f3-4e1f-8f8b-c1e985599fed.png',
 };
 
 export async function preloadCriticalImages() {
@@ -48,7 +47,6 @@ export async function preloadCriticalImages() {
     OPTIMIZED_IMAGE_URLS.gratitudeCard,
     OPTIMIZED_IMAGE_URLS.fitnessCard,
     OPTIMIZED_IMAGE_URLS.appointmentsCard,
-    OPTIMIZED_IMAGE_URLS.settingsCard,
   ];
   
   try {

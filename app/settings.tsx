@@ -543,6 +543,15 @@ export default function SettingsScreen() {
       return;
     }
     await saveProfile({ ...profile, displayName: trimmedName });
+    if ((useAuth as any).updateUserName) {
+      const authContext = useAuth();
+      if (authContext.updateUserName) {
+        const result = await authContext.updateUserName(trimmedName);
+        if (!result.success) {
+          console.warn('[Settings] Failed to update auth user name:', result.error);
+        }
+      }
+    }
     setEditProfileVisible(false);
   };
 

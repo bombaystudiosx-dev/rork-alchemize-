@@ -38,7 +38,6 @@ export function verifyToken(token: string): AuthTokenPayload | null {
 
 export async function createUser(email: string, password: string, name: string) {
   const db = await getSurrealDB();
-  if (!db) throw new Error('Database connection not available');
   
   const existing = await db.query('SELECT * FROM users WHERE email = $email', {
     email,
@@ -71,7 +70,6 @@ export async function createUser(email: string, password: string, name: string) 
 
 export async function loginUser(email: string, password: string) {
   const db = await getSurrealDB();
-  if (!db) throw new Error('Database connection not available');
 
   const result = await db.query('SELECT * FROM users WHERE email = $email', {
     email,
@@ -104,7 +102,6 @@ export async function getUserFromToken(token: string) {
   }
 
   const db = await getSurrealDB();
-  if (!db) return null;
   const result = await db.select(payload.userId);
 
   if (!result || (Array.isArray(result) && result.length === 0)) {
