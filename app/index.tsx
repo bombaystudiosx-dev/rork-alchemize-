@@ -707,86 +707,12 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#1a0b2e', '#2d1b4e', '#3d2463', '#1a0b2e']}
+      <Image
+        source={require('@/assets/images/home-background.png')}
         style={styles.background}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        contentFit="cover"
+        cachePolicy="memory-disk"
       />
-      
-      <View style={styles.decorativeElements}>
-        <Animated.View 
-          style={[
-            styles.moon, 
-            { 
-              top: 120, 
-              left: -40,
-              transform: [{
-                translateY: moonFloat.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, -20],
-                })
-              }]
-            }
-          ]}
-        >
-          <LinearGradient
-            colors={['#4a90e2', '#6fb1ff']}
-            style={styles.moonGradient}
-          >
-            <View style={styles.moonCrescent} />
-          </LinearGradient>
-        </Animated.View>
-        
-        {[...Array(8)].map((_, i) => (
-          <Animated.View
-            key={`star-${i}`}
-            style={[
-              styles.star,
-              {
-                top: 100 + Math.random() * 300,
-                left: Math.random() * SCREEN_WIDTH,
-                opacity: starTwinkles[i],
-              },
-            ]}
-          />
-        ))}
-        
-        {[...Array(6)].map((_, i) => {
-          const candleTop = 150 + Math.random() * (SCREEN_HEIGHT - 400);
-          const candleLeft = i < 3 ? Math.random() * (SCREEN_WIDTH * 0.2) : SCREEN_WIDTH - Math.random() * (SCREEN_WIDTH * 0.2);
-          const baseOpacity = 0.4 + Math.random() * 0.4;
-          
-          return (
-            <Animated.View
-              key={`candle-${i}`}
-              style={[
-                styles.candle,
-                {
-                  top: candleTop,
-                  left: candleLeft,
-                  opacity: baseOpacity,
-                },
-              ]}
-            >
-              <View style={styles.candleBody} />
-              <Animated.View 
-                style={[
-                  styles.candleFlame,
-                  {
-                    transform: [{
-                      scaleY: candleFlickers[i].interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [1, 1.2],
-                      })
-                    }]
-                  }
-                ]}
-              />
-            </Animated.View>
-          );
-        })}
-      </View>
 
       <View style={[styles.topBar, { paddingTop: insets.top + 12 }]}>
         <View style={styles.topBarLeft}>
