@@ -898,19 +898,6 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      <TouchableOpacity
-        style={styles.fabButton}
-        onPress={() => router.push('/quick-add' as any)}
-        activeOpacity={0.8}
-      >
-        <LinearGradient
-          colors={['#8b5cf6', '#6d28d9']}
-          style={styles.fabGradient}
-        >
-          <Text style={styles.fabIcon}>+</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-
       <Modal
         visible={dayModalVisible}
         animationType="slide"
