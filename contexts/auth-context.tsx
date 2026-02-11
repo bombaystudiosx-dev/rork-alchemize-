@@ -40,7 +40,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const loadAuthState = async () => {
     try {
-      console.log('[Auth] Loading auth state...');
       const [storedAuth, storedRememberMe] = await Promise.all([
         AsyncStorage.getItem(AUTH_STORAGE_KEY).catch(() => null),
         AsyncStorage.getItem(REMEMBER_ME_KEY).catch(() => null),
@@ -54,36 +53,27 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
             if (Platform.OS !== 'web') {
               setCurrentUserId(auth.user.id);
             }
-            console.log('[Auth] Auth state loaded successfully:', auth.user?.email);
           } else {
-            console.warn('[Auth] Invalid auth structure, clearing');
             await AsyncStorage.removeItem(AUTH_STORAGE_KEY).catch(() => {});
           }
-        } catch (parseError) {
-          console.warn('[Auth] Invalid auth JSON, clearing:', parseError);
+        } catch {
           await AsyncStorage.removeItem(AUTH_STORAGE_KEY).catch(() => {});
           await AsyncStorage.removeItem(USERS_STORAGE_KEY).catch(() => {});
         }
       } else if (storedAuth) {
-        console.warn('[Auth] Corrupted auth data detected, clearing all');
         await AsyncStorage.multiRemove([AUTH_STORAGE_KEY, USERS_STORAGE_KEY, REMEMBER_ME_KEY]).catch(() => {});
-      } else {
-        console.log('[Auth] No stored auth found');
       }
 
       if (storedRememberMe === 'true') {
         setRememberMeState(true);
       }
-    } catch (error) {
-      console.error('[Auth] Error loading auth state:', error);
+    } catch {
       await AsyncStorage.multiRemove([AUTH_STORAGE_KEY, USERS_STORAGE_KEY, REMEMBER_ME_KEY]).catch(() => {});
     }
   };
 
   const login = async (email: string, password: string, remember: boolean) => {
     try {
-      console.log('[Auth] Logging in:', email);
-      
       const usersData = await AsyncStorage.getItem(USERS_STORAGE_KEY);
       const users: StoredUser[] = usersData ? JSON.parse(usersData) : [];
       
@@ -117,24 +107,20 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newAuthState));
       await AsyncStorage.setItem(REMEMBER_ME_KEY, remember.toString());
 
-      console.log('[Auth] Login successful');
       return { success: true };
     } catch (error: any) {
-      console.error('[Auth] Login error:', error);
-      return { success: false, error: error.message || 'Login failed' };
+      return { success: false, error: error.message || 'Login failed. Please try again.' };
     }
   };
 
   const signup = async (email: string, password: string, name: string) => {
     try {
-      console.log('[Auth] Signing up:', email);
-
       const usersData = await AsyncStorage.getItem(USERS_STORAGE_KEY);
       const users: StoredUser[] = usersData ? JSON.parse(usersData) : [];
       
       const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
       if (existingUser) {
-        return { success: false, error: 'User already exists' };
+        return { success: false, error: 'User already exists. Please login instead.' };
       }
       
       const userId = `user_${Date.now()}_${Math.random().toString(36).substring(7)}`;
@@ -166,11 +152,9 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
       await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newAuthState));
 
-      console.log('[Auth] Signup successful');
       return { success: true };
     } catch (error: any) {
-      console.error('[Auth] Signup error:', error);
-      return { success: false, error: error.message || 'Signup failed' };
+      return { success: false, error: error.message || 'Signup failed. Please try again.' };
     }
   };
 
@@ -180,14 +164,16 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         return { success: false, error: 'No user logged in' };
       }
 
-      console.log('[Auth] Updating user name:', newName);
+      if (!newName || newName.trim().length === 0) {
+        return { success: false, error: 'Name cannot be empty' };
+      }
       
       const usersData = await AsyncStorage.getItem(USERS_STORAGE_KEY);
       const users: StoredUser[] = usersData ? JSON.parse(usersData) : [];
       
       const userIndex = users.findIndex(u => u.id === authState.user!.id);
       if (userIndex !== -1) {
-        users[userIndex].name = newName;
+        users[userIndex].name = newName.trim();
         await AsyncStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
       }
 
@@ -195,24 +181,21 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         ...authState,
         user: {
           ...authState.user,
-          name: newName,
+          name: newName.trim(),
         },
       };
       
       setAuthState(updatedAuthState);
       await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedAuthState));
 
-      console.log('[Auth] User name updated successfully');
       return { success: true };
     } catch (error: any) {
-      console.error('[Auth] Update user name error:', error);
-      return { success: false, error: error.message || 'Update failed' };
+      return { success: false, error: error.message || 'Update failed. Please try again.' };
     }
   };
 
   const logout = async () => {
     try {
-      console.log('[Auth] Logging out');
       setAuthState({ user: null, token: null });
       
       if (Platform.OS !== 'web') {
@@ -221,10 +204,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       
       await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
       await AsyncStorage.removeItem(REMEMBER_ME_KEY);
-
-      console.log('[Auth] Logout successful');
-    } catch (error) {
-      console.error('[Auth] Logout error:', error);
+    } catch {
+      // Silent fail on logout storage cleanup
     }
   };
 

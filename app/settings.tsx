@@ -113,6 +113,7 @@ export default function SettingsScreen() {
   const [healthKitLastSync, setHealthKitLastSync] = useState<string | null>(null);
   const [isSyncingHealthKit, setIsSyncingHealthKit] = useState(false);
   const { theme, setTheme } = useTheme();
+  const { updateUserName } = useAuth();
   const [pwaInstallPrompt, setPwaInstallPrompt] = useState<any>(null);
   const [isPwaInstalled, setIsPwaInstalled] = useState(false);
 
@@ -126,22 +127,20 @@ export default function SettingsScreen() {
           if (parsed && parsed.displayName) {
             setProfile({
               ...parsed,
+              displayName: user?.name || parsed.displayName,
               email: user?.email || parsed.email,
             });
-            console.log('[Settings] Profile loaded:', parsed);
           } else {
             setProfile(getDefaultProfile(user));
           }
-        } catch (parseError) {
-          console.warn('[Settings] Invalid profile data, using default:', parseError);
+        } catch {
           await AsyncStorage.removeItem(userStorageKey);
           setProfile(getDefaultProfile(user));
         }
       } else {
         setProfile(getDefaultProfile(user));
       }
-    } catch (error) {
-      console.error('[Settings] Error loading profile:', error);
+    } catch {
       setProfile(getDefaultProfile(user));
     }
   }, [user]);
@@ -151,9 +150,8 @@ export default function SettingsScreen() {
       const userStorageKey = user?.id ? `${STORAGE_KEY}_${user.id}` : STORAGE_KEY;
       await AsyncStorage.setItem(userStorageKey, JSON.stringify(newProfile));
       setProfile(newProfile);
-      console.log('[Settings] Profile saved:', newProfile);
-    } catch (error) {
-      console.error('[Settings] Error saving profile:', error);
+    } catch {
+      Alert.alert('Error', 'Failed to save profile changes.');
     }
   }, [user?.id]);
 
@@ -165,9 +163,7 @@ export default function SettingsScreen() {
         try {
           const parsed = JSON.parse(stored) as FeatureVisibility;
           setFeatureVisibility(parsed);
-          console.log('[Settings] Feature visibility loaded:', parsed);
-        } catch (parseError) {
-          console.warn('[Settings] Invalid feature visibility data:', parseError);
+        } catch {
           await AsyncStorage.removeItem(userFeatureKey);
           const defaultVisibility: FeatureVisibility = {};
           DEFAULT_FEATURES.forEach(f => {
@@ -182,8 +178,8 @@ export default function SettingsScreen() {
         });
         setFeatureVisibility(defaultVisibility);
       }
-    } catch (error) {
-      console.error('[Settings] Error loading feature visibility:', error);
+    } catch {
+      // Use default visibility
     }
   }, [user?.id]);
 
@@ -196,9 +192,8 @@ export default function SettingsScreen() {
       };
       setFeatureVisibility(newVisibility);
       await AsyncStorage.setItem(userFeatureKey, JSON.stringify(newVisibility));
-      console.log('[Settings] Feature visibility updated:', newVisibility);
-    } catch (error) {
-      console.error('[Settings] Error saving feature visibility:', error);
+    } catch {
+      Alert.alert('Error', 'Failed to update feature visibility.');
     }
   }, [user?.id, featureVisibility]);
 
@@ -208,10 +203,9 @@ export default function SettingsScreen() {
       const stored = await AsyncStorage.getItem(userCalendarKey);
       if (stored !== null) {
         setCalendarVisible(stored === 'true');
-        console.log('[Settings] Calendar visibility loaded:', stored);
       }
-    } catch (error) {
-      console.error('[Settings] Error loading calendar visibility:', error);
+    } catch {
+      // Use default value
     }
   }, [user?.id]);
 
@@ -221,9 +215,8 @@ export default function SettingsScreen() {
       const newValue = !calendarVisible;
       setCalendarVisible(newValue);
       await AsyncStorage.setItem(userCalendarKey, String(newValue));
-      console.log('[Settings] Calendar visibility updated:', newValue);
-    } catch (error) {
-      console.error('[Settings] Error saving calendar visibility:', error);
+    } catch {
+      Alert.alert('Error', 'Failed to update calendar visibility.');
     }
   }, [user?.id, calendarVisible]);
 
@@ -233,9 +226,8 @@ export default function SettingsScreen() {
       setHealthKitPermissions(permissions);
       const lastSync = await getLastSyncTime();
       setHealthKitLastSync(lastSync);
-      console.log('[Settings] HealthKit status loaded:', permissions.overallStatus);
-    } catch (error) {
-      console.error('[Settings] Error loading HealthKit status:', error);
+    } catch {
+      // Silent fail for HealthKit status
     }
   }, []);
 
@@ -251,14 +243,12 @@ export default function SettingsScreen() {
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
           (window.navigator as any).standalone === true;
         setIsPwaInstalled(isStandalone);
-        console.log('[Settings] PWA installed check:', isStandalone);
       };
       checkPwaInstalled();
 
       const handleBeforeInstallPrompt = (e: Event) => {
         e.preventDefault();
         setPwaInstallPrompt(e);
-        console.log('[Settings] PWA install prompt captured');
       };
 
       window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -272,9 +262,6 @@ export default function SettingsScreen() {
     if (Platform.OS === 'web') {
       const supported = 'bluetooth' in navigator;
       setBluetoothSupported(supported);
-      console.log('[Settings] Web Bluetooth supported:', supported);
-    } else {
-      console.log('[Settings] Native Bluetooth requires custom dev build');
     }
   };
 
@@ -288,14 +275,13 @@ export default function SettingsScreen() {
       try {
         pwaInstallPrompt.prompt();
         const { outcome } = await pwaInstallPrompt.userChoice;
-        console.log('[Settings] PWA install outcome:', outcome);
         if (outcome === 'accepted') {
           setIsPwaInstalled(true);
           setPwaInstallPrompt(null);
           Alert.alert('Installed!', 'Alchemize has been added to your home screen.');
         }
-      } catch (error) {
-        console.error('[Settings] PWA install error:', error);
+      } catch {
+        Alert.alert('Error', 'Failed to install app. Please try again.');
       }
     } else {
       Alert.alert(
@@ -309,7 +295,6 @@ export default function SettingsScreen() {
   };
 
   const startBluetoothScan = async () => {
-    console.log('[Settings] Starting Bluetooth scan...');
     setIsScanning(true);
     setBluetoothDevices([]);
 
@@ -332,11 +317,9 @@ export default function SettingsScreen() {
             name: device.name || 'Unknown Device',
           };
           setBluetoothDevices(prev => [...prev, newDevice]);
-          console.log('[Settings] Device found:', newDevice);
           Alert.alert('Device Found', `Connected to ${newDevice.name}`);
         }
       } catch (error: any) {
-        console.error('[Settings] Bluetooth scan error:', error);
         if (error.name !== 'NotFoundError') {
           Alert.alert('Scan Failed', error.message || 'Failed to scan for devices');
         }
@@ -354,17 +337,14 @@ export default function SettingsScreen() {
   };
 
   const handleBluetoothPress = () => {
-    console.log('[Settings] Opening Bluetooth settings...');
     setBluetoothModalVisible(true);
   };
 
   const handleHealthKitPress = () => {
-    console.log('[Settings] Opening HealthKit settings...');
     setHealthKitModalVisible(true);
   };
 
   const handleEnableHealthKit = async () => {
-    console.log('[Settings] Enabling HealthKit...');
     try {
       const permissions = await requestHealthKitPermissions();
       setHealthKitPermissions(permissions);
@@ -377,8 +357,7 @@ export default function SettingsScreen() {
         const { reason } = isHealthKitSupported();
         Alert.alert('Not Available', reason);
       }
-    } catch (error) {
-      console.error('[Settings] Error enabling HealthKit:', error);
+    } catch {
       Alert.alert('Error', 'Failed to connect to Apple Health. Please try again.');
     }
   };
@@ -396,7 +375,6 @@ export default function SettingsScreen() {
             await revokeHealthKitPermissions();
             setHealthKitPermissions(null);
             setHealthKitLastSync(null);
-            console.log('[Settings] HealthKit disconnected');
           },
         },
       ]
@@ -405,7 +383,6 @@ export default function SettingsScreen() {
 
   const handleSyncHealthKit = async () => {
     if (isSyncingHealthKit) return;
-    console.log('[Settings] Syncing HealthKit...');
     setIsSyncingHealthKit(true);
     try {
       const result = await syncHealthKitData();
@@ -416,8 +393,7 @@ export default function SettingsScreen() {
       } else {
         Alert.alert('Sync Failed', result.message);
       }
-    } catch (error) {
-      console.error('[Settings] Error syncing HealthKit:', error);
+    } catch {
       Alert.alert('Error', 'Failed to sync with Apple Health.');
     } finally {
       setIsSyncingHealthKit(false);
@@ -470,11 +446,9 @@ export default function SettingsScreen() {
   };
 
   const handleTakePhoto = async () => {
-    console.log('[Settings] Requesting camera permissions...');
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     
     if (status !== 'granted') {
-      console.log('[Settings] Camera permission denied');
       setPermissionModalVisible(true);
       return;
     }
@@ -488,21 +462,17 @@ export default function SettingsScreen() {
 
       if (!result.canceled && result.assets[0]) {
         const uri = result.assets[0].uri;
-        console.log('[Settings] Photo taken:', uri);
         await saveProfile({ ...profile, photoUri: uri });
       }
-    } catch (error) {
-      console.error('[Settings] Error taking photo:', error);
+    } catch {
       Alert.alert('Error', 'Failed to take photo. Please try again.');
     }
   };
 
   const handleChooseFromLibrary = async () => {
-    console.log('[Settings] Requesting media library permissions...');
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     
     if (status !== 'granted') {
-      console.log('[Settings] Media library permission denied');
       setPermissionModalVisible(true);
       return;
     }
@@ -517,17 +487,14 @@ export default function SettingsScreen() {
 
       if (!result.canceled && result.assets[0]) {
         const uri = result.assets[0].uri;
-        console.log('[Settings] Photo selected:', uri);
         await saveProfile({ ...profile, photoUri: uri });
       }
-    } catch (error) {
-      console.error('[Settings] Error selecting photo:', error);
+    } catch {
       Alert.alert('Error', 'Failed to select photo. Please try again.');
     }
   };
 
   const handleRemovePhoto = async () => {
-    console.log('[Settings] Removing photo...');
     await saveProfile({ ...profile, photoUri: null });
   };
 
@@ -542,17 +509,19 @@ export default function SettingsScreen() {
       Alert.alert('Invalid Name', 'Please enter a valid display name.');
       return;
     }
-    await saveProfile({ ...profile, displayName: trimmedName });
-    if ((useAuth as any).updateUserName) {
-      const authContext = useAuth();
-      if (authContext.updateUserName) {
-        const result = await authContext.updateUserName(trimmedName);
-        if (!result.success) {
-          console.warn('[Settings] Failed to update auth user name:', result.error);
-        }
+    
+    try {
+      await saveProfile({ ...profile, displayName: trimmedName });
+      
+      const result = await updateUserName(trimmedName);
+      if (!result.success) {
+        Alert.alert('Warning', result.error || 'Profile saved locally but failed to sync username.');
       }
+      
+      setEditProfileVisible(false);
+    } catch {
+      Alert.alert('Error', 'Failed to save profile changes.');
     }
-    setEditProfileVisible(false);
   };
 
   const handleSignOut = () => {
@@ -565,11 +534,9 @@ export default function SettingsScreen() {
           text: 'Sign Out',
           style: 'destructive',
           onPress: async () => {
-            console.log('[Settings] Signing out...');
             try {
               await logout();
-            } catch (error) {
-              console.error('[Settings] Error signing out:', error);
+            } catch {
               Alert.alert('Error', 'Failed to sign out. Please try again.');
             }
           },

@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Settings, ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, ChevronDown, ChevronUp, Moon, Sparkles } from 'lucide-react-native';
+import { Settings, ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, ChevronDown, ChevronUp, Moon } from 'lucide-react-native';
 import { ASSETS } from '@/constants/assets';
 import { OPTIMIZED_IMAGE_URLS } from '@/constants/image-config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -156,7 +156,6 @@ function UnifiedCalendar({ events, selectedWeekStart, onWeekChange, onDayPress, 
     const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 10);
     const delay = Math.max(1000, nextMidnight.getTime() - now.getTime());
     const timeout = setTimeout(() => {
-      console.log('[UnifiedCalendar] Midnight rollover detected - updating today');
       setTodayTick((t) => t + 1);
     }, delay);
     return () => clearTimeout(timeout);
@@ -353,13 +352,21 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
 
+  const moonFloat = useRef(new Animated.Value(0)).current;
+  const usernameGlow = useRef(new Animated.Value(0)).current;
+  const candleFlickers = useRef(
+    Array.from({ length: 6 }, () => new Animated.Value(0))
+  ).current;
+  const starTwinkles = useRef(
+    Array.from({ length: 8 }, () => new Animated.Value(0.3))
+  ).current;
+
   const loadCalendarEvents = useCallback(async () => {
     if (Platform.OS === 'web') return;
     
     try {
       const db = getDatabase();
       if (!db) {
-        console.log('[Calendar] Database not ready yet');
         return;
       }
       
@@ -452,10 +459,8 @@ export default function HomeScreen() {
       
       setCalendarEvents(allEvents);
     } catch (error) {
-      if (error instanceof Error && error.message === 'Database not initialized') {
-        console.log('[Calendar] Waiting for database to initialize');
-      } else {
-        console.error('[Calendar] Error loading events:', error);
+      if (error instanceof Error && error.message !== 'Database not initialized') {
+        // Silent fail for calendar events - non-critical
       }
     }
   }, [selectedWeekStart]);
@@ -466,6 +471,85 @@ export default function HomeScreen() {
     }, 60000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    const moonAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(moonFloat, {
+          toValue: 1,
+          duration: 4000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(moonFloat, {
+          toValue: 0,
+          duration: 4000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    const usernameAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(usernameGlow, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(usernameGlow, {
+          toValue: 0,
+          duration: 2000,
+          useNativeDriver: false,
+        }),
+      ])
+    );
+
+    const candleAnimations = candleFlickers.map((anim, index) => {
+      return Animated.loop(
+        Animated.sequence([
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: 800 + (index * 100),
+            useNativeDriver: true,
+          }),
+          Animated.timing(anim, {
+            toValue: 0,
+            duration: 800 + (index * 100),
+            useNativeDriver: true,
+          }),
+        ])
+      );
+    });
+
+    const starAnimations = starTwinkles.map((anim, index) => {
+      return Animated.loop(
+        Animated.sequence([
+          Animated.delay(index * 300),
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(anim, {
+            toValue: 0.3,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+    });
+
+    moonAnimation.start();
+    usernameAnimation.start();
+    candleAnimations.forEach(anim => anim.start());
+    starAnimations.forEach(anim => anim.start());
+
+    return () => {
+      moonAnimation.stop();
+      usernameAnimation.stop();
+      candleAnimations.forEach(anim => anim.stop());
+      starAnimations.forEach(anim => anim.stop());
+    };
+  }, [moonFloat, usernameGlow, candleFlickers, starTwinkles]);
 
   const getGreeting = () => {
     const hour = currentTime.getHours();
@@ -488,21 +572,18 @@ export default function HomeScreen() {
       if (stored && typeof stored === 'string' && stored.startsWith('{')) {
         try {
           const visibility = JSON.parse(stored) as FeatureVisibility;
-          console.log('[Home] Feature visibility loaded:', visibility);
           const visibleCards = ALL_FEATURE_CARDS.filter(
             card => visibility[card.id] !== false
           );
           setFeatureCards(visibleCards);
-        } catch (parseError) {
-          console.warn('[Home] Invalid feature visibility data:', parseError);
+        } catch {
           await AsyncStorage.removeItem(FEATURES_VISIBILITY_KEY);
           setFeatureCards(ALL_FEATURE_CARDS);
         }
       } else {
         setFeatureCards(ALL_FEATURE_CARDS);
       }
-    } catch (error) {
-      console.error('[Home] Error loading feature visibility:', error);
+    } catch {
       setFeatureCards(ALL_FEATURE_CARDS);
     }
   };
@@ -512,10 +593,9 @@ export default function HomeScreen() {
       const stored = await AsyncStorage.getItem(CALENDAR_VISIBILITY_KEY);
       if (stored !== null) {
         setCalendarVisible(stored === 'true');
-        console.log('[Home] Calendar visibility loaded:', stored);
       }
-    } catch (error) {
-      console.error('[Home] Error loading calendar visibility:', error);
+    } catch {
+      // Use default value
     }
   };
 
@@ -635,45 +715,77 @@ export default function HomeScreen() {
       />
       
       <View style={styles.decorativeElements}>
-        <View style={[styles.moon, { top: 120, left: -40 }]}>
+        <Animated.View 
+          style={[
+            styles.moon, 
+            { 
+              top: 120, 
+              left: -40,
+              transform: [{
+                translateY: moonFloat.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, -20],
+                })
+              }]
+            }
+          ]}
+        >
           <LinearGradient
             colors={['#4a90e2', '#6fb1ff']}
             style={styles.moonGradient}
           >
             <View style={styles.moonCrescent} />
           </LinearGradient>
-        </View>
+        </Animated.View>
         
         {[...Array(8)].map((_, i) => (
-          <View
+          <Animated.View
             key={`star-${i}`}
             style={[
               styles.star,
               {
                 top: 100 + Math.random() * 300,
                 left: Math.random() * SCREEN_WIDTH,
-                opacity: 0.3 + Math.random() * 0.7,
+                opacity: starTwinkles[i],
               },
             ]}
           />
         ))}
         
-        {[...Array(6)].map((_, i) => (
-          <View
-            key={`candle-${i}`}
-            style={[
-              styles.candle,
-              {
-                top: 150 + Math.random() * (SCREEN_HEIGHT - 400),
-                left: i < 3 ? Math.random() * (SCREEN_WIDTH * 0.2) : SCREEN_WIDTH - Math.random() * (SCREEN_WIDTH * 0.2),
-                opacity: 0.4 + Math.random() * 0.4,
-              },
-            ]}
-          >
-            <View style={styles.candleBody} />
-            <View style={styles.candleFlame} />
-          </View>
-        ))}
+        {[...Array(6)].map((_, i) => {
+          const candleTop = 150 + Math.random() * (SCREEN_HEIGHT - 400);
+          const candleLeft = i < 3 ? Math.random() * (SCREEN_WIDTH * 0.2) : SCREEN_WIDTH - Math.random() * (SCREEN_WIDTH * 0.2);
+          const baseOpacity = 0.4 + Math.random() * 0.4;
+          
+          return (
+            <Animated.View
+              key={`candle-${i}`}
+              style={[
+                styles.candle,
+                {
+                  top: candleTop,
+                  left: candleLeft,
+                  opacity: baseOpacity,
+                },
+              ]}
+            >
+              <View style={styles.candleBody} />
+              <Animated.View 
+                style={[
+                  styles.candleFlame,
+                  {
+                    transform: [{
+                      scaleY: candleFlickers[i].interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [1, 1.2],
+                      })
+                    }]
+                  }
+                ]}
+              />
+            </Animated.View>
+          );
+        })}
       </View>
 
       <View style={[styles.topBar, { paddingTop: insets.top + 12 }]}>
@@ -695,14 +807,29 @@ export default function HomeScreen() {
 
       <View style={[styles.greetingSection, { paddingTop: insets.top + 60 }]}>
         <Text style={styles.greeting}>{getGreeting()}</Text>
-        <LinearGradient
-          colors={['#ec4899', '#8b5cf6']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.usernameGradient}
+        <Animated.View
+          style={{
+            shadowColor: '#ec4899',
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: usernameGlow.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0.3, 0.8],
+            }),
+            shadowRadius: usernameGlow.interpolate({
+              inputRange: [0, 1],
+              outputRange: [8, 20],
+            }),
+          }}
         >
-          <Text style={styles.username}>{user?.name || 'User'}</Text>
-        </LinearGradient>
+          <LinearGradient
+            colors={['#ec4899', '#8b5cf6']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.usernameGradient}
+          >
+            <Text style={styles.username}>{user?.name || 'User'}</Text>
+          </LinearGradient>
+        </Animated.View>
         <Text style={styles.tagline}>Transform your reality by transforming yourself</Text>
       </View>
 
