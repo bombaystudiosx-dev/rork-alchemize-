@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, TextInput, TouchableOpacity, Text, ScrollView, Alert } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Trash2 } from 'lucide-react-native';
+import { Trash2, ArrowLeft } from 'lucide-react-native';
 import { financialExpenseDb } from '@/lib/database';
 import type { FinancialExpense } from '@/types';
 
@@ -117,6 +117,15 @@ export default function EditExpenseScreen() {
 
   return (
     <View style={styles.container}>
+      <Stack.Screen
+        options={{
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => router.back()} style={styles.headerBackButton}>
+              <ArrowLeft size={24} color="#fff" />
+            </TouchableOpacity>
+          ),
+        }}
+      />
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         <Text style={styles.label}>Expense Name</Text>
         <TextInput
@@ -200,6 +209,10 @@ export default function EditExpenseScreen() {
 }
 
 const styles = StyleSheet.create({
+  headerBackButton: {
+    padding: 8,
+    marginLeft: -8,
+  },
   container: {
     flex: 1,
     backgroundColor: '#0A0A0A',

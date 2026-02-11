@@ -692,6 +692,7 @@ export async function resetDatabase() {
     DELETE FROM water_logs;
     DELETE FROM meal_prep_plans;
   `);
+  console.log('Database reset');
 }
 
 export const userProfileDb = {

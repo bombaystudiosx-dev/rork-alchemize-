@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Settings, ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, ChevronDown, ChevronUp, Moon } from 'lucide-react-native';
+import { Settings, ChevronLeft, ChevronRight, X, Calendar as CalendarIcon, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { ASSETS } from '@/constants/assets';
 import { OPTIMIZED_IMAGE_URLS } from '@/constants/image-config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -12,16 +12,15 @@ import { useTheme } from '@/contexts/theme-context';
 import PWAInstallPrompt from './pwa-install-prompt';
 import { getDatabase } from '@/lib/database';
 import { isSameLocalDay, localDateKey, startOfLocalDay } from '@/lib/date-utils';
-import { useAuth } from '@/contexts/auth-context';
 
 const FEATURES_VISIBILITY_KEY = '@alchemize_features_visibility';
 const CALENDAR_VISIBILITY_KEY = '@alchemize_calendar_visibility';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const HEADER_Y_OFFSET = 80 as const;
-const CARD_HORIZONTAL_PADDING = 40 as const;
+const CARD_HORIZONTAL_PADDING = 20 as const;
 const CARD_WIDTH = SCREEN_WIDTH - (CARD_HORIZONTAL_PADDING * 2);
-const CARD_HEIGHT = 460;
+const CARD_HEIGHT = CARD_WIDTH + 100;
 
 interface FeatureCard {
   id: string;
@@ -47,55 +46,55 @@ const ALL_FEATURE_CARDS: FeatureCard[] = [
   {
     id: 'manifestation-board',
     title: 'Manifestation Board',
-    subtitle: 'Visualize/feel your dreams until your reality becomes a reflection',
+    subtitle: 'Visualize and feel your desires until they become real.',
     image: ASSETS.cardManifestationBoard,
     route: '/manifestation-board',
   },
   {
     id: 'affirmations',
     title: 'Affirmations',
-    subtitle: 'Reprogram your subconscious mind with powerful affirmations',
+    subtitle: 'Reprogram your subconscious mind with powerful affirmations.',
     image: OPTIMIZED_IMAGE_URLS.affirmationsCard,
     route: '/affirmations',
   },
   {
     id: 'goals',
     title: 'Set Goals',
-    subtitle: 'Be intentional and strategic with your life',
+    subtitle: 'Turn intention into measurable progress.',
     image: OPTIMIZED_IMAGE_URLS.goalsCard,
     route: '/goals',
   },
   {
     id: 'habits',
     title: 'Habit Tracker',
-    subtitle: 'Condition yourself for greatness',
+    subtitle: 'Build consistency and condition yourself for greatness.',
     image: OPTIMIZED_IMAGE_URLS.habitsCard,
     route: '/habits',
   },
   {
     id: 'financial',
-    title: 'Financial',
-    subtitle: 'Organize Finances',
+    title: 'Financial Tracker',
+    subtitle: 'Gain clarity over money, habits, and priorities.',
     image: OPTIMIZED_IMAGE_URLS.financialCard,
     route: '/financial',
   },
   {
     id: 'calorie',
-    title: 'Calorie',
-    subtitle: 'AI food recognition, macros & meal planning',
+    title: 'Calorie Tracker',
+    subtitle: 'Understand what fuels your body.',
     image: OPTIMIZED_IMAGE_URLS.calorieCard,
     route: '/calorie',
   },
   {
     id: 'todos',
-    title: 'To-Do',
-    subtitle: 'Shape your day, one small win at a time.',
+    title: 'To-Do List',
+    subtitle: 'Shape your day, one focused action at a time.',
     image: OPTIMIZED_IMAGE_URLS.todosCard,
     route: '/todos',
   },
   {
     id: 'gratitude',
-    title: 'Gratitude',
+    title: 'Gratitude Journal',
     subtitle: 'Gratitude is the ability to experience life as a gift.',
     image: OPTIMIZED_IMAGE_URLS.gratitudeCard,
     route: '/gratitude',
@@ -103,14 +102,14 @@ const ALL_FEATURE_CARDS: FeatureCard[] = [
   {
     id: 'fitness',
     title: 'Fitness',
-    subtitle: 'Transform your body and energy',
+    subtitle: 'Track movement, energy, and physical transformation.',
     image: OPTIMIZED_IMAGE_URLS.fitnessCard,
     route: '/fitness',
   },
   {
     id: 'appointments',
     title: 'Appointments',
-    subtitle: 'Organize your time with intention',
+    subtitle: 'Organize your time with intention and clarity.',
     image: OPTIMIZED_IMAGE_URLS.appointmentsCard,
     route: '/appointments',
   },
@@ -156,6 +155,7 @@ function UnifiedCalendar({ events, selectedWeekStart, onWeekChange, onDayPress, 
     const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 10);
     const delay = Math.max(1000, nextMidnight.getTime() - now.getTime());
     const timeout = setTimeout(() => {
+      console.log('[UnifiedCalendar] Midnight rollover detected - updating today');
       setTodayTick((t) => t + 1);
     }, delay);
     return () => clearTimeout(timeout);
@@ -349,17 +349,6 @@ export default function HomeScreen() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [dayModalVisible, setDayModalVisible] = useState(false);
   const [calendarVisible, setCalendarVisible] = useState(true);
-  const { user } = useAuth();
-  const [currentTime, setCurrentTime] = useState(new Date());
-
-  const moonFloat = useRef(new Animated.Value(0)).current;
-  const usernameGlow = useRef(new Animated.Value(0)).current;
-  const candleFlickers = useRef(
-    Array.from({ length: 6 }, () => new Animated.Value(0))
-  ).current;
-  const starTwinkles = useRef(
-    Array.from({ length: 8 }, () => new Animated.Value(0.3))
-  ).current;
 
   const loadCalendarEvents = useCallback(async () => {
     if (Platform.OS === 'web') return;
@@ -367,6 +356,7 @@ export default function HomeScreen() {
     try {
       const db = getDatabase();
       if (!db) {
+        console.log('[Calendar] Database not ready yet');
         return;
       }
       
@@ -459,112 +449,13 @@ export default function HomeScreen() {
       
       setCalendarEvents(allEvents);
     } catch (error) {
-      if (error instanceof Error && error.message !== 'Database not initialized') {
-        // Silent fail for calendar events - non-critical
+      if (error instanceof Error && error.message === 'Database not initialized') {
+        console.log('[Calendar] Waiting for database to initialize');
+      } else {
+        console.error('[Calendar] Error loading events:', error);
       }
     }
   }, [selectedWeekStart]);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 60000);
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    const moonAnimation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(moonFloat, {
-          toValue: 1,
-          duration: 4000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(moonFloat, {
-          toValue: 0,
-          duration: 4000,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-
-    const usernameAnimation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(usernameGlow, {
-          toValue: 1,
-          duration: 2000,
-          useNativeDriver: false,
-        }),
-        Animated.timing(usernameGlow, {
-          toValue: 0,
-          duration: 2000,
-          useNativeDriver: false,
-        }),
-      ])
-    );
-
-    const candleAnimations = candleFlickers.map((anim, index) => {
-      return Animated.loop(
-        Animated.sequence([
-          Animated.timing(anim, {
-            toValue: 1,
-            duration: 800 + (index * 100),
-            useNativeDriver: true,
-          }),
-          Animated.timing(anim, {
-            toValue: 0,
-            duration: 800 + (index * 100),
-            useNativeDriver: true,
-          }),
-        ])
-      );
-    });
-
-    const starAnimations = starTwinkles.map((anim, index) => {
-      return Animated.loop(
-        Animated.sequence([
-          Animated.delay(index * 300),
-          Animated.timing(anim, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(anim, {
-            toValue: 0.3,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-    });
-
-    moonAnimation.start();
-    usernameAnimation.start();
-    candleAnimations.forEach(anim => anim.start());
-    starAnimations.forEach(anim => anim.start());
-
-    return () => {
-      moonAnimation.stop();
-      usernameAnimation.stop();
-      candleAnimations.forEach(anim => anim.stop());
-      starAnimations.forEach(anim => anim.stop());
-    };
-  }, [moonFloat, usernameGlow, candleFlickers, starTwinkles]);
-
-  const getGreeting = () => {
-    const hour = currentTime.getHours();
-    if (hour < 12) return '⚡ GOOD MORNING ⚡';
-    if (hour < 18) return '⚡ GOOD AFTERNOON ⚡';
-    return '⚡ GOOD EVENING ⚡';
-  };
-
-  const formatTime = () => {
-    return currentTime.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: true 
-    });
-  };
 
   const loadFeatureVisibility = async () => {
     try {
@@ -572,18 +463,21 @@ export default function HomeScreen() {
       if (stored && typeof stored === 'string' && stored.startsWith('{')) {
         try {
           const visibility = JSON.parse(stored) as FeatureVisibility;
+          console.log('[Home] Feature visibility loaded:', visibility);
           const visibleCards = ALL_FEATURE_CARDS.filter(
             card => visibility[card.id] !== false
           );
           setFeatureCards(visibleCards);
-        } catch {
+        } catch (parseError) {
+          console.warn('[Home] Invalid feature visibility data:', parseError);
           await AsyncStorage.removeItem(FEATURES_VISIBILITY_KEY);
           setFeatureCards(ALL_FEATURE_CARDS);
         }
       } else {
         setFeatureCards(ALL_FEATURE_CARDS);
       }
-    } catch {
+    } catch (error) {
+      console.error('[Home] Error loading feature visibility:', error);
       setFeatureCards(ALL_FEATURE_CARDS);
     }
   };
@@ -593,9 +487,10 @@ export default function HomeScreen() {
       const stored = await AsyncStorage.getItem(CALENDAR_VISIBILITY_KEY);
       if (stored !== null) {
         setCalendarVisible(stored === 'true');
+        console.log('[Home] Calendar visibility loaded:', stored);
       }
-    } catch {
-      // Use default value
+    } catch (error) {
+      console.error('[Home] Error loading calendar visibility:', error);
     }
   };
 
@@ -705,59 +600,34 @@ export default function HomeScreen() {
     />;
   }
 
+  const headerTopPadding = insets.top + HEADER_Y_OFFSET;
+
   return (
     <View style={styles.container}>
-      <Image
-        source={require('@/assets/images/home-background.png')}
-        style={styles.background}
+      <Image 
+        source={OPTIMIZED_IMAGE_URLS.homeBackground} 
+        style={styles.background} 
         contentFit="cover"
         cachePolicy="memory-disk"
+        priority="high"
+        transition={0}
       />
-
-      <View style={[styles.topBar, { paddingTop: insets.top + 12 }]}>
-        <View style={styles.topBarLeft}>
-          <TouchableOpacity onPress={() => {}} style={styles.iconButton}>
-            <Moon size={22} color="#a78bfa" />
-          </TouchableOpacity>
+      
+      {calendarVisible && (
+        <View style={[styles.headerContainer, { paddingTop: headerTopPadding }]}>
+          <View style={styles.headerContent}>
+            <UnifiedCalendar 
+              events={calendarEvents}
+              selectedWeekStart={selectedWeekStart}
+              onWeekChange={setSelectedWeekStart}
+              onDayPress={handleDayPress}
+              onEventPress={(route) => router.push(route as any)}
+              getEventTitle={getEventTitle}
+              getEventColor={getEventColor}
+            />
+          </View>
         </View>
-        <View style={styles.topBarRight}>
-          <Text style={styles.timeText}>{formatTime()}</Text>
-          <TouchableOpacity
-            onPress={() => router.push('/settings' as any)}
-            style={styles.iconButton}
-          >
-            <Settings size={22} color="#a78bfa" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={[styles.greetingSection, { paddingTop: insets.top + 60 }]}>
-        <Text style={styles.greeting}>{getGreeting()}</Text>
-        <Animated.View
-          style={{
-            shadowColor: '#ec4899',
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: usernameGlow.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0.3, 0.8],
-            }),
-            shadowRadius: usernameGlow.interpolate({
-              inputRange: [0, 1],
-              outputRange: [8, 20],
-            }),
-          }}
-        >
-          <LinearGradient
-            colors={['#ec4899', '#8b5cf6']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.usernameGradient}
-          >
-            <Text style={styles.username}>{user?.name || 'User'}</Text>
-          </LinearGradient>
-        </Animated.View>
-        <Text style={styles.tagline}>Transform your reality by transforming yourself</Text>
-      </View>
+      )}
 
       <View style={styles.carouselContainer}>
         <ScrollView
@@ -769,9 +639,6 @@ export default function HomeScreen() {
           scrollEventThrottle={16}
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
-          decelerationRate="fast"
-          snapToInterval={SCREEN_WIDTH}
-          snapToAlignment="center"
         >
           {featureCards.map((card) => (
             <TouchableOpacity
@@ -781,23 +648,46 @@ export default function HomeScreen() {
               activeOpacity={0.9}
             >
               <View style={styles.card}>
-                <Image 
-                  source={card.image} 
-                  style={styles.cardImageFull} 
-                  contentFit="cover"
-                  contentPosition={card.id === 'habits' ? 'top' : 'center'}
-                  cachePolicy="memory-disk"
-                  priority="high"
-                  transition={0}
-                />
+                {card.id === 'affirmations' ? (
+                  <>
+                    <Image 
+                      source={OPTIMIZED_IMAGE_URLS.homeBackground}
+                      style={styles.cardImageFull} 
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      priority="high"
+                      transition={0}
+                    />
+                    <Image 
+                      source={card.image} 
+                      style={styles.cardImageFull} 
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      priority="high"
+                      transition={0}
+                    />
+                  </>
+                ) : (
+                  <Image 
+                    source={card.image} 
+                    style={styles.cardImageFull} 
+                    contentFit="cover"
+                    contentPosition={card.id === 'habits' ? 'top' : 'center'}
+                    cachePolicy="memory-disk"
+                    priority="high"
+                    transition={0}
+                  />
+                )}
                 <LinearGradient
-                  colors={['transparent', 'rgba(0,0,0,0.5)', 'rgba(0,0,0,0.9)']}
-                  locations={[0, 0.6, 1]}
+                  colors={card.id === 'affirmations' ? ['transparent', 'transparent', 'rgba(0,0,0,0.75)'] : ['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.85)']}
+                  locations={[0, 0.5, 1]}
                   style={styles.cardGradient}
                 >
                   <View style={styles.cardContent}>
-                    <Text style={styles.cardTitle}>{card.title}</Text>
-                    <Text style={styles.cardSubtitle}>{card.subtitle}</Text>
+                    <View style={styles.cardTextContainer}>
+                      <Text style={styles.cardTitle}>{card.title}</Text>
+                      <Text style={styles.cardSubtitle}>{card.subtitle}</Text>
+                    </View>
                   </View>
                 </LinearGradient>
               </View>
@@ -806,7 +696,6 @@ export default function HomeScreen() {
         </ScrollView>
 
         <View style={styles.footer}>
-          <Text style={styles.swipeText}>← Swipe to navigate →</Text>
           <View style={styles.dotsContainer}>
             {featureCards.map((_, index) => (
               <View
@@ -823,6 +712,14 @@ export default function HomeScreen() {
           </Text>
         </View>
       </View>
+
+      <TouchableOpacity
+        style={styles.settingsButton}
+        onPress={() => router.push('/settings' as any)}
+        activeOpacity={0.8}
+      >
+        <Settings color="#fff" size={24} />
+      </TouchableOpacity>
 
       <Modal
         visible={dayModalVisible}
@@ -1064,7 +961,7 @@ const calendarStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a0b2e',
+    backgroundColor: '#000',
   },
   background: {
     position: 'absolute',
@@ -1075,156 +972,68 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  decorativeElements: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  moon: {
-    position: 'absolute',
-    width: 180,
-    height: 180,
-  },
-  moonGradient: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 90,
-    opacity: 0.6,
-  },
-  moonCrescent: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    width: 140,
-    height: 180,
-    backgroundColor: '#1a0b2e',
-    borderRadius: 90,
-  },
-  star: {
-    position: 'absolute',
-    width: 3,
-    height: 3,
-    backgroundColor: '#fff',
-    borderRadius: 1.5,
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
-  },
-  candle: {
-    position: 'absolute',
-    alignItems: 'center',
-  },
-  candleBody: {
-    width: 8,
-    height: 40,
-    backgroundColor: '#8b5cf6',
-    borderRadius: 4,
-    opacity: 0.6,
-  },
-  candleFlame: {
-    width: 12,
-    height: 16,
-    backgroundColor: '#fbbf24',
-    borderRadius: 6,
-    marginTop: -8,
-    shadowColor: '#fbbf24',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 12,
-  },
-  topBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  headerContainer: {
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingBottom: 12,
-    zIndex: 10,
+    paddingBottom: 16,
   },
-  topBarLeft: {
-    flexDirection: 'row',
+  headerContent: {
     alignItems: 'center',
+    width: '100%',
   },
-  topBarRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  timeText: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: '#fff',
+  time: {
+    fontSize: 44,
+    fontFamily: 'Pacifico',
+    color: '#FFFFFF',
     letterSpacing: 0.5,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(167, 139, 250, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  greetingSection: {
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    zIndex: 5,
+    lineHeight: 52,
+    marginTop: 8,
+    marginBottom: 6,
+    textAlign: 'center',
   },
   greeting: {
-    fontSize: 22,
+    fontSize: 34,
     fontWeight: '700' as const,
-    color: '#fbbf24',
+    fontFamily: 'Akronim',
+    color: '#fcd34d',
     letterSpacing: 2,
-    textShadowColor: 'rgba(251, 191, 36, 0.6)',
+    textShadowColor: 'rgba(252, 211, 77, 0.8)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 16,
-    marginBottom: 12,
+    marginBottom: 8,
     textAlign: 'center',
-  },
-  usernameGradient: {
-    borderRadius: 8,
-    paddingHorizontal: 2,
-    paddingVertical: 2,
   },
   username: {
-    fontSize: 42,
-    fontWeight: '700' as const,
-    color: '#fff',
+    fontSize: 26,
+    fontWeight: '600' as const,
+    fontFamily: 'Akronim',
+    color: '#c4b5fd',
     letterSpacing: 1,
-    textAlign: 'center',
-    includeFontPadding: false,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 8,
+    textShadowColor: 'rgba(196, 181, 253, 0.8)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 12,
+    marginBottom: 8,
   },
   tagline: {
-    fontSize: 16,
-    fontStyle: 'italic' as const,
-    color: '#fbbf24',
-    letterSpacing: 0.5,
+    fontSize: 20,
+    fontFamily: 'Pacifico',
+    color: '#f5d3ff',
+    letterSpacing: 0.3,
     textAlign: 'center',
-    lineHeight: 24,
-    marginTop: 12,
-    paddingHorizontal: 24,
-    textShadowColor: 'rgba(251, 191, 36, 0.4)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
+    lineHeight: 28,
+    marginTop: 4,
+    paddingHorizontal: 20,
   },
   carouselContainer: {
     flex: 1,
-    marginTop: 20,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingTop: 20,
+    paddingBottom: 20,
   },
   cardContainer: {
     width: SCREEN_WIDTH,
@@ -1235,16 +1044,11 @@ const styles = StyleSheet.create({
   card: {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
-    borderRadius: 20,
+    borderRadius: 24,
     overflow: 'hidden',
-    backgroundColor: 'rgba(30, 20, 50, 0.6)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(167, 139, 250, 0.3)',
-    shadowColor: '#8b5cf6',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   cardImageFull: {
     position: 'absolute',
@@ -1264,85 +1068,80 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   cardContent: {
-    padding: 20,
-    paddingBottom: 24,
+    padding: 24,
+    paddingBottom: 28,
+    paddingTop: 16,
+  },
+  cardTextContainer: {
+    position: 'relative',
+    paddingVertical: 8,
+    paddingTop: 12,
   },
   cardTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '700' as const,
     color: '#fff',
-    marginBottom: 8,
-    lineHeight: 30,
+    marginBottom: 12,
+    marginTop: 2,
+    lineHeight: 38,
     textShadowColor: 'rgba(0, 0, 0, 0.8)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
     includeFontPadding: false,
   },
   cardSubtitle: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.85)',
-    lineHeight: 20,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    lineHeight: 24,
     textShadowColor: 'rgba(0, 0, 0, 0.8)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
     includeFontPadding: false,
   },
   footer: {
-    paddingVertical: 16,
-    paddingBottom: 24,
+    paddingVertical: 20,
     alignItems: 'center',
-    gap: 12,
-  },
-  swipeText: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.6)',
-    fontWeight: '500' as const,
-    letterSpacing: 0.5,
   },
   dotsContainer: {
     flexDirection: 'row',
+    marginBottom: 12,
   },
   dot: {
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: 'rgba(255,255,255,0.3)',
-    marginHorizontal: 3,
+    marginHorizontal: 4,
   },
   dotActive: {
-    backgroundColor: '#a78bfa',
-    width: 20,
+    backgroundColor: '#fff',
+    width: 24,
   },
   pageCounter: {
-    fontSize: 13,
+    fontSize: 14,
     color: 'rgba(255,255,255,0.7)',
     fontWeight: '500' as const,
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
-  fabButton: {
+  settingsButton: {
     position: 'absolute',
     bottom: 30,
-    right: 24,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    shadowColor: '#8b5cf6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  fabGradient: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 30,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  fabIcon: {
-    fontSize: 32,
-    color: '#fff',
-    fontWeight: '300' as const,
-    marginTop: -2,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   modalOverlay: {
     flex: 1,

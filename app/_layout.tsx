@@ -17,7 +17,7 @@ const queryClient = new QueryClient({
 
 function RootLayoutNav() {
   return (
-    <Stack screenOptions={{ headerBackTitle: "Back" }}>
+    <Stack screenOptions={{ headerBackTitle: "Back", headerBackVisible: true, headerStyle: { backgroundColor: '#0a0a0a' }, headerTintColor: '#fff' }}>
       <Stack.Screen name="auth" options={{ title: "Welcome", headerShown: false }} />
       <Stack.Screen name="index" options={{ title: "Alchemize", headerShown: false }} />
       <Stack.Screen name="manifestation-board/index" options={{ title: "Manifestation Board" }} />
@@ -43,6 +43,8 @@ function RootLayoutNav() {
       <Stack.Screen name="calorie/profile" options={{ title: "Profile", presentation: "modal" }} />
       <Stack.Screen name="calorie/meal-prep" options={{ title: "Meal Prep" }} />
       <Stack.Screen name="financial/notes" options={{ title: "Financial Notes" }} />
+      <Stack.Screen name="financial/income-add" options={{ title: "Add Income", presentation: "modal" }} />
+      <Stack.Screen name="financial/expense-edit" options={{ title: "Edit Expense" }} />
       <Stack.Screen name="affirmations/index" options={{ title: "Affirmations" }} />
       <Stack.Screen name="affirmations/[id]" options={{ title: "Edit Affirmation" }} />
       <Stack.Screen name="affirmations/add" options={{ title: "Add Affirmation", presentation: "modal" }} />
