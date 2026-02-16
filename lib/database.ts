@@ -686,9 +686,29 @@ export async function resetDatabase() {
 export const userProfileDb = {
   async get(): Promise<UserProfile | null> {
     const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return null;
-    return database.getFirstAsync<UserProfile>('SELECT * FROM user_profile WHERE userId = ? LIMIT 1', [userId]);
+    const userId = getCurrentUserId() || 'default';
+    let profile = await database.getFirstAsync<UserProfile>('SELECT * FROM user_profile WHERE userId = ? LIMIT 1', [userId]);
+    
+    if (!profile) {
+      const defaultProfile: UserProfile = {
+        id: 'profile_default',
+        userId,
+        fullName: 'Guest',
+        email: '',
+        totalXp: 0,
+        totalEnergy: 0,
+        currentStreak: 0,
+        createdAt: Date.now(),
+      };
+      await database.runAsync(
+        `INSERT OR REPLACE INTO user_profile (id, userId, fullName, email, totalXp, totalEnergy, currentStreak, createdAt) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [defaultProfile.id, defaultProfile.userId, defaultProfile.fullName, defaultProfile.email, defaultProfile.totalXp, defaultProfile.totalEnergy, defaultProfile.currentStreak, defaultProfile.createdAt]
+      );
+      profile = defaultProfile;
+    }
+    
+    return profile;
   },
   
   async createOrUpdate(profile: UserProfile): Promise<void> {
@@ -704,8 +724,10 @@ export const userProfileDb = {
   
   async updateXpAndEnergy(xp: number, energy: number): Promise<void> {
     const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return;
+    const userId = getCurrentUserId() || 'default';
+    
+    await this.get();
+    
     await database.runAsync(
       'UPDATE user_profile SET totalXp = totalXp + ?, totalEnergy = totalEnergy + ? WHERE userId = ?',
       [xp, energy, userId]

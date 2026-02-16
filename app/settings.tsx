@@ -634,30 +634,47 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>ACCOUNT</Text>
         
-        <TouchableOpacity style={styles.settingRow} onPress={openEditProfile}>
-          <View style={styles.settingRowLeft}>
-            <View style={styles.iconContainer}>
-              <User color="#a78bfa" size={20} />
+        {!user ? (
+          <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/auth' as any)}>
+            <View style={styles.settingRowLeft}>
+              <View style={styles.iconContainer}>
+                <User color="#a78bfa" size={20} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Sign In / Sign Up</Text>
+                <Text style={styles.settingSubtitle}>Create an account or sign in</Text>
+              </View>
             </View>
-            <View style={styles.settingTextContainer}>
-              <Text style={styles.settingTitle}>Profile</Text>
-              <Text style={styles.settingSubtitle}>Manage your profile details</Text>
-            </View>
-          </View>
-          <ChevronRight color="#666" size={20} />
-        </TouchableOpacity>
+            <ChevronRight color="#666" size={20} />
+          </TouchableOpacity>
+        ) : (
+          <>
+            <TouchableOpacity style={styles.settingRow} onPress={openEditProfile}>
+              <View style={styles.settingRowLeft}>
+                <View style={styles.iconContainer}>
+                  <User color="#a78bfa" size={20} />
+                </View>
+                <View style={styles.settingTextContainer}>
+                  <Text style={styles.settingTitle}>Profile</Text>
+                  <Text style={styles.settingSubtitle}>Manage your profile details</Text>
+                </View>
+              </View>
+              <ChevronRight color="#666" size={20} />
+            </TouchableOpacity>
 
-        <TouchableOpacity style={styles.settingRow} disabled>
-          <View style={styles.settingRowLeft}>
-            <View style={styles.iconContainer}>
-              <Mail color="#a78bfa" size={20} />
-            </View>
-            <View style={styles.settingTextContainer}>
-              <Text style={styles.settingTitle}>Email</Text>
-              <Text style={styles.settingSubtitle}>{profile.email}</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
+            <TouchableOpacity style={styles.settingRow} disabled>
+              <View style={styles.settingRowLeft}>
+                <View style={styles.iconContainer}>
+                  <Mail color="#a78bfa" size={20} />
+                </View>
+                <View style={styles.settingTextContainer}>
+                  <Text style={styles.settingTitle}>Email</Text>
+                  <Text style={styles.settingSubtitle}>{profile.email}</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
 
       {/* APP Section */}
@@ -825,11 +842,13 @@ export default function SettingsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Sign Out Button */}
-      <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-        <LogOut color="#ef4444" size={20} />
-        <Text style={styles.signOutText}>Sign Out</Text>
-      </TouchableOpacity>
+      {/* Sign Out Button - Only show when logged in */}
+      {user && (
+        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+          <LogOut color="#ef4444" size={20} />
+          <Text style={styles.signOutText}>Sign Out</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Footer */}
       <View style={styles.footer}>
