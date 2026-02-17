@@ -60,10 +60,11 @@ export default function AuthScreen() {
   return (
     <View style={styles.container}>
       <Image
-        source="https://fv5-3.files.fm/thumb_show.php?i=a2fesqnhyp&view&v=1&PHPSESSID=562f76ae684b8b5e8507e14030e7af116d9c6724"
+        source={require('@/assets/images/signin-background.png')}
         style={styles.background}
-        contentFit="contain"
-        contentPosition={{ top: -60, left: 0 }}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        priority="high"
       />
       <LinearGradient
         colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.2)', 'rgba(0,0,0,0.85)']}
