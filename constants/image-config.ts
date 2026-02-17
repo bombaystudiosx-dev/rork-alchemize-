@@ -16,7 +16,7 @@ export const CARD_IMAGE_CONFIG = {
 };
 
 export const OPTIMIZED_IMAGE_URLS = {
-  homeBackground: 'https://fv5-5.files.fm/thumb_show.php?i=j8etk9jxd8&view&v=1&PHPSESSID=562f76ae684b8b5e8507e14030e7af116d9c6724',
+  homeBackground: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/acgd4eppcht7rgr6abih7',
   cosmicBackground: 'https://fv5-3.files.fm/thumb_show.php?i=7th7rn53er&view&v=1&PHPSESSID=562f76ae684b8b5e8507e14030e7af116d9c6724',
   manifestationBoardBg: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/kflyhi3p0jh7nuw0u9n1u',
   affirmationsCard: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/5xvh01k2ftwt4gog83jwy',
