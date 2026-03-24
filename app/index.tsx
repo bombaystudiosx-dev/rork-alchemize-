@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { DeviceMotion, DeviceMotionMeasurement } from 'expo-sensors';
 import { View, StyleSheet, Dimensions, ScrollView, TouchableOpacity, Text, Animated, Platform, Modal, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -1265,6 +1266,8 @@ function OrbitalHomeScreen({ featureCards, onCardPress, router, calendarEvents, 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
+  const tiltX = useRef(new Animated.Value(0)).current;
+  const tiltY = useRef(new Animated.Value(0)).current;
   const floatAnims = useRef(
     featureCards.map(() => new Animated.Value(0))
   ).current;
@@ -1343,6 +1346,27 @@ function OrbitalHomeScreen({ featureCards, onCardPress, router, calendarEvents, 
     };
   }, [floatAnims, sparkleAnims]);
 
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    let subscription: { remove: () => void } | null = null;
+    DeviceMotion.isAvailableAsync().then((available: boolean) => {
+      if (!available) return;
+      DeviceMotion.setUpdateInterval(80);
+      subscription = DeviceMotion.addListener((data: DeviceMotionMeasurement) => {
+        if (!data.rotation) return;
+        const gamma = data.rotation.gamma ?? 0;
+        const beta = data.rotation.beta ?? 0;
+        const maxTilt = Math.PI / 5;
+        const range = 18;
+        const x = (Math.max(-maxTilt, Math.min(maxTilt, gamma)) / maxTilt) * range;
+        const y = (Math.max(-maxTilt, Math.min(maxTilt, beta - 0.3)) / maxTilt) * range;
+        Animated.spring(tiltX, { toValue: x, useNativeDriver: true, damping: 25, stiffness: 120, mass: 0.6 }).start();
+        Animated.spring(tiltY, { toValue: y, useNativeDriver: true, damping: 25, stiffness: 120, mass: 0.6 }).start();
+      });
+    }).catch(() => {});
+    return () => { if (subscription) subscription.remove(); };
+  }, [tiltX, tiltY]);
+
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { x: scrollX } } }],
     {
@@ -1357,14 +1381,21 @@ function OrbitalHomeScreen({ featureCards, onCardPress, router, calendarEvents, 
 
   return (
     <View style={orbitalStyles.container}>
-      <Image 
-        source={OPTIMIZED_IMAGE_URLS.cosmicBackground}
-        style={orbitalStyles.background} 
-        contentFit="cover"
-        cachePolicy="memory-disk"
-        priority="high"
-        transition={0}
-      />
+      <Animated.View
+        style={[
+          orbitalStyles.parallaxContainer,
+          { transform: [{ translateX: tiltX }, { translateY: tiltY }] },
+        ]}
+      >
+        <Image 
+          source={OPTIMIZED_IMAGE_URLS.cosmicBackground}
+          style={orbitalStyles.parallaxBackground} 
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          priority="high"
+          transition={0}
+        />
+      </Animated.View>
       <View style={orbitalStyles.overlay} />
       
       {calendarVisible && (
@@ -1550,6 +1581,17 @@ const orbitalStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
+  },
+  parallaxContainer: {
+    position: 'absolute',
+    top: -25,
+    left: -25,
+    right: -25,
+    bottom: -25,
+  },
+  parallaxBackground: {
+    width: '100%',
+    height: '100%',
   },
   background: {
     position: 'absolute',
