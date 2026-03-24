@@ -1,15 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Text, Dimensions, TouchableOpacity, TextInput, Alert, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Edit2, Save, X, Trash2, Camera, ImageIcon } from 'lucide-react-native';
+import { Edit2, Save, X, Trash2, Camera, Upload } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { manifestationsDb } from '@/lib/database';
 import type { Manifestation } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CATEGORIES = ['wealth', 'love', 'health', 'career', 'relationships', 'other'] as const;
+
+const MOOD_TAGS: { key: Manifestation['category']; label: string; emoji: string }[] = [
+  { key: 'wealth', label: 'Wealth', emoji: '💰' },
+  { key: 'love', label: 'Love', emoji: '💞' },
+  { key: 'health', label: 'Health', emoji: '🌿' },
+  { key: 'focus', label: 'Focus', emoji: '🎯' },
+  { key: 'creativity', label: 'Creativity', emoji: '🎨' },
+  { key: 'healing', label: 'Healing', emoji: '💫' },
+];
+
+const MOOD_EMOJI_MAP: Record<string, string> = {
+  wealth: '💰',
+  love: '💞',
+  health: '🌿',
+  focus: '🎯',
+  creativity: '🎨',
+  healing: '💫',
+  career: '🎯',
+  relationships: '💞',
+  other: '✨',
+};
 
 export default function ManifestationDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -17,7 +38,7 @@ export default function ManifestationDetailScreen() {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState<typeof CATEGORIES[number]>('wealth');
+  const [category, setCategory] = useState<Manifestation['category']>('wealth');
   const [intention, setIntention] = useState('');
   const [images, setImages] = useState<string[]>([]);
 
@@ -39,27 +60,25 @@ export default function ManifestationDetailScreen() {
   const updateMutation = useMutation({
     mutationFn: (updated: Manifestation) => manifestationsDb.update(updated),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['manifestations'] });
-      queryClient.invalidateQueries({ queryKey: ['manifestation', id] });
+      void queryClient.invalidateQueries({ queryKey: ['manifestations'] });
+      void queryClient.invalidateQueries({ queryKey: ['manifestation', id] });
       setIsEditing(false);
-      Alert.alert('Success', 'Manifestation updated successfully');
     },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => manifestationsDb.delete(id),
+    mutationFn: (deleteId: string) => manifestationsDb.delete(deleteId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['manifestations'] });
+      void queryClient.invalidateQueries({ queryKey: ['manifestations'] });
       router.back();
     },
   });
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     if (!title.trim()) {
       Alert.alert('Error', 'Please enter a title');
       return;
     }
-
     if (!manifestation) return;
 
     const updated: Manifestation = {
@@ -70,11 +89,10 @@ export default function ManifestationDetailScreen() {
       images,
       updatedAt: Date.now(),
     };
-
     updateMutation.mutate(updated);
-  };
+  }, [title, category, intention, images, manifestation, updateMutation]);
 
-  const handleDelete = () => {
+  const handleDelete = useCallback(() => {
     Alert.alert(
       'Delete Manifestation',
       'Are you sure you want to delete this manifestation?',
@@ -87,9 +105,9 @@ export default function ManifestationDetailScreen() {
         },
       ]
     );
-  };
+  }, [deleteMutation, id]);
 
-  const requestPermissions = async () => {
+  const requestPermissions = useCallback(async () => {
     if (Platform.OS !== 'web') {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
@@ -98,35 +116,34 @@ export default function ManifestationDetailScreen() {
       }
     }
     return true;
-  };
+  }, []);
 
-  const handlePickImage = async () => {
+  const handlePickImage = useCallback(async () => {
     try {
       const hasPermission = await requestPermissions();
       if (!hasPermission) return;
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsMultipleSelection: true,
+        allowsEditing: true,
         quality: 0.8,
-        selectionLimit: 5,
       });
 
-      if (!result.canceled && result.assets) {
-        const newImages = result.assets.map(asset => asset.uri);
-        setImages(prev => [...prev, ...newImages].slice(0, 5));
+      if (!result.canceled && result.assets && result.assets[0]) {
+        setImages([result.assets[0].uri]);
       }
     } catch (error) {
-      console.error('Error picking image:', error);
+      console.error('[ManifestationDetail] Error picking image:', error);
       Alert.alert('Error', 'Failed to pick image');
     }
-  };
+  }, [requestPermissions]);
 
-  const handleTakePhoto = async () => {
+  const handleTakePhoto = useCallback(async () => {
     try {
-      const hasPermission = await requestPermissions();
-      if (!hasPermission) return;
-
+      if (Platform.OS === 'web') {
+        Alert.alert('Not Available', 'Camera is not available on web.');
+        return;
+      }
       const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
       if (cameraPermission.status !== 'granted') {
         Alert.alert('Permission Required', 'Please allow camera access.');
@@ -139,22 +156,22 @@ export default function ManifestationDetailScreen() {
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
-        setImages(prev => [...prev, result.assets[0].uri].slice(0, 5));
+        setImages([result.assets[0].uri]);
       }
     } catch (error) {
-      console.error('Error taking photo:', error);
+      console.error('[ManifestationDetail] Error taking photo:', error);
       Alert.alert('Error', 'Failed to take photo');
     }
-  };
-
-  const handleRemoveImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index));
-  };
+  }, []);
 
   if (!manifestation) {
     return (
       <View style={styles.container}>
-        <Text style={styles.loadingText}>Loading...</Text>
+        <LinearGradient colors={['#0c0520', '#1a0a3e']} style={styles.background}>
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Loading...</Text>
+          </View>
+        </LinearGradient>
       </View>
     );
   }
@@ -162,125 +179,140 @@ export default function ManifestationDetailScreen() {
   if (isEditing) {
     return (
       <View style={styles.container}>
-        <View style={styles.editHeader}>
-          <TouchableOpacity style={styles.headerButton} onPress={() => setIsEditing(false)}>
-            <X color="#ffffff" size={24} />
-            <Text style={styles.headerButtonText}>Cancel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerButton} onPress={handleSave}>
-            <Save color="#6366f1" size={24} />
-            <Text style={[styles.headerButtonText, styles.saveText]}>Save</Text>
-          </TouchableOpacity>
-        </View>
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.editContent}>
-          <Text style={styles.label}>Title</Text>
-          <TextInput
-            style={styles.input}
-            value={title}
-            onChangeText={setTitle}
-            placeholder="My manifestation..."
-            placeholderTextColor="#9ca3af"
-          />
-
-          <Text style={styles.label}>Category</Text>
-          <View style={styles.categoryContainer}>
-            {CATEGORIES.map((cat) => (
-              <TouchableOpacity
-                key={cat}
-                style={[styles.categoryChip, category === cat && styles.categoryChipActive]}
-                onPress={() => setCategory(cat)}
-              >
-                <Text style={[styles.categoryText, category === cat && styles.categoryTextActive]}>
-                  {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <Text style={styles.label}>Intention</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={intention}
-            onChangeText={setIntention}
-            placeholder="Describe your intention..."
-            placeholderTextColor="#9ca3af"
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-          />
-
-          <Text style={styles.label}>Images (up to 5)</Text>
-          <View style={styles.imagePickerContainer}>
-            <TouchableOpacity style={styles.imagePickerButton} onPress={handlePickImage}>
-              <ImageIcon color="#ffffff" size={24} />
-              <Text style={styles.imagePickerText}>Choose Photos</Text>
+        <LinearGradient colors={['#1a0a3e', '#0c0520', '#0d1033']} style={styles.background}>
+          <View style={styles.editHeader}>
+            <TouchableOpacity style={styles.headerBtn} onPress={() => setIsEditing(false)}>
+              <X color="#ffffff" size={22} />
+              <Text style={styles.headerBtnText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.imagePickerButton} onPress={handleTakePhoto}>
-              <Camera color="#ffffff" size={24} />
-              <Text style={styles.imagePickerText}>Take Photo</Text>
+            <TouchableOpacity style={styles.headerBtn} onPress={handleSave}>
+              <Save color="#a78bfa" size={22} />
+              <Text style={[styles.headerBtnText, { color: '#a78bfa' }]}>Save</Text>
             </TouchableOpacity>
           </View>
 
-          {images.length > 0 && (
-            <ScrollView horizontal style={styles.imagePreviewContainer} showsHorizontalScrollIndicator={false}>
-              {images.map((uri, index) => (
-                <View key={index} style={styles.imagePreviewWrapper}>
-                  <Image source={{ uri }} style={styles.imagePreview} contentFit="cover" />
-                  <TouchableOpacity
-                    style={styles.removeImageButton}
-                    onPress={() => handleRemoveImage(index)}
-                  >
-                    <Trash2 color="#ffffff" size={16} />
-                  </TouchableOpacity>
-                </View>
+          <ScrollView style={styles.scrollView} contentContainerStyle={styles.editContent}>
+            <Text style={styles.editLabel}>Title</Text>
+            <TextInput
+              style={styles.editInput}
+              value={title}
+              onChangeText={setTitle}
+              placeholder="My manifestation..."
+              placeholderTextColor="rgba(180,170,200,0.5)"
+            />
+
+            <Text style={styles.editLabel}>Intention</Text>
+            <TextInput
+              style={[styles.editInput, styles.editTextArea]}
+              value={intention}
+              onChangeText={setIntention}
+              placeholder="Describe your intention..."
+              placeholderTextColor="rgba(180,170,200,0.5)"
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+
+            <Text style={styles.editLabel}>Mood Tag</Text>
+            <View style={styles.editMoodGrid}>
+              {MOOD_TAGS.map((tag) => (
+                <TouchableOpacity
+                  key={tag.key}
+                  style={[styles.editMoodTag, category === tag.key && styles.editMoodTagActive]}
+                  onPress={() => setCategory(tag.key)}
+                >
+                  <Text style={styles.editMoodEmoji}>{tag.emoji}</Text>
+                  <Text style={[styles.editMoodLabel, category === tag.key && styles.editMoodLabelActive]}>
+                    {tag.label}
+                  </Text>
+                </TouchableOpacity>
               ))}
-            </ScrollView>
-          )}
-        </ScrollView>
+            </View>
+
+            <Text style={styles.editLabel}>Vision Image</Text>
+            <View style={styles.editImageButtons}>
+              <TouchableOpacity style={styles.editImageBtn} onPress={handlePickImage}>
+                <Upload color="#c4b5fd" size={20} />
+                <Text style={styles.editImageBtnText}>Upload</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.editImageBtn} onPress={handleTakePhoto}>
+                <Camera color="#c4b5fd" size={20} />
+                <Text style={styles.editImageBtnText}>Camera</Text>
+              </TouchableOpacity>
+            </View>
+
+            {images.length > 0 && (
+              <View style={styles.editImagePreviewWrap}>
+                <Image source={{ uri: images[0] }} style={styles.editImagePreview} contentFit="cover" />
+                <TouchableOpacity style={styles.editRemoveImg} onPress={() => setImages([])}>
+                  <Trash2 color="#ffffff" size={16} />
+                </TouchableOpacity>
+              </View>
+            )}
+          </ScrollView>
+        </LinearGradient>
       </View>
     );
   }
 
+  const moodEmoji = MOOD_EMOJI_MAP[manifestation.category] ?? '✨';
+
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        {manifestation.images.length > 0 && (
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            style={styles.imageCarousel}
-          >
-            {manifestation.images.map((uri, index) => (
+      <LinearGradient colors={['#0c0520', '#1a0a3e', '#0c0520']} style={styles.background}>
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.detailContent}>
+          {manifestation.images.length > 0 ? (
+            <View style={styles.heroImageContainer}>
               <Image
-                key={index}
-                source={{ uri }}
-                style={styles.image}
+                source={{ uri: manifestation.images[0] }}
+                style={styles.heroImage}
                 contentFit="cover"
               />
-            ))}
-          </ScrollView>
-        )}
-
-        <View style={styles.infoContainer}>
-          <Text style={styles.category}>{manifestation.category}</Text>
-          <Text style={styles.title}>{manifestation.title}</Text>
-          {manifestation.intention && (
-            <Text style={styles.intention}>{manifestation.intention}</Text>
+              <LinearGradient
+                colors={['transparent', 'rgba(12, 5, 32, 0.9)']}
+                style={styles.heroGradient}
+              />
+            </View>
+          ) : (
+            <LinearGradient
+              colors={['#4c1d95', '#6d28d9']}
+              style={styles.heroPlaceholder}
+            >
+              <Text style={styles.heroInitial}>
+                {manifestation.title.charAt(0).toUpperCase()}
+              </Text>
+            </LinearGradient>
           )}
-        </View>
-      </ScrollView>
 
-      <View style={styles.actionButtons}>
-        <TouchableOpacity style={styles.editButton} onPress={() => setIsEditing(true)}>
-          <Edit2 color="#ffffff" size={20} />
-          <Text style={styles.editButtonText}>Edit</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-          <Trash2 color="#ffffff" size={20} />
-          <Text style={styles.deleteButtonText}>Delete</Text>
-        </TouchableOpacity>
-      </View>
+          <View style={styles.detailInfo}>
+            <View style={styles.detailCategoryRow}>
+              <Text style={styles.detailMoodEmoji}>{moodEmoji}</Text>
+              <Text style={styles.detailCategory}>
+                {manifestation.category.charAt(0).toUpperCase() + manifestation.category.slice(1)}
+              </Text>
+            </View>
+            <Text style={styles.detailTitle}>{manifestation.title}</Text>
+            {manifestation.intention ? (
+              <Text style={styles.detailIntention}>{manifestation.intention}</Text>
+            ) : null}
+          </View>
+        </ScrollView>
+
+        <View style={styles.detailActions}>
+          <TouchableOpacity style={styles.editBtn} onPress={() => setIsEditing(true)} activeOpacity={0.8}>
+            <LinearGradient colors={['#7c3aed', '#6d28d9']} style={styles.actionBtnGradient}>
+              <Edit2 color="#ffffff" size={18} />
+              <Text style={styles.actionBtnText}>Edit</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} activeOpacity={0.8}>
+            <View style={styles.deleteBtnInner}>
+              <Trash2 color="#ef4444" size={18} />
+              <Text style={styles.deleteBtnText}>Delete</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
     </View>
   );
 }
@@ -288,49 +320,86 @@ export default function ManifestationDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#0c0520',
+  },
+  background: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
   },
-  content: {
-    paddingBottom: 100,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   loadingText: {
-    color: '#ffffff',
+    color: '#c4b5fd',
     fontSize: 16,
-    textAlign: 'center',
-    marginTop: 40,
   },
-  imageCarousel: {
-    height: 300,
+
+  detailContent: {
+    paddingBottom: 100,
   },
-  image: {
+  heroImageContainer: {
     width: SCREEN_WIDTH,
-    height: 300,
+    height: 340,
+    position: 'relative',
   },
-  infoContainer: {
+  heroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  heroGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 120,
+  },
+  heroPlaceholder: {
+    width: SCREEN_WIDTH,
+    height: 260,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  heroInitial: {
+    fontSize: 64,
+    fontWeight: '700' as const,
+    color: 'rgba(255,255,255,0.4)',
+  },
+  detailInfo: {
     padding: 20,
   },
-  category: {
-    fontSize: 14,
-    color: '#818cf8',
-    fontWeight: '600' as const,
-    marginBottom: 8,
-    textTransform: 'uppercase',
+  detailCategoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
   },
-  title: {
-    fontSize: 28,
+  detailMoodEmoji: {
+    fontSize: 16,
+  },
+  detailCategory: {
+    fontSize: 13,
+    color: '#a78bfa',
+    fontWeight: '600' as const,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 1,
+  },
+  detailTitle: {
+    fontSize: 26,
     fontWeight: '700' as const,
     color: '#ffffff',
-    marginBottom: 16,
+    marginBottom: 14,
+    lineHeight: 32,
   },
-  intention: {
-    fontSize: 16,
-    color: '#d1d5db',
-    lineHeight: 24,
+  detailIntention: {
+    fontSize: 15,
+    color: 'rgba(200, 190, 220, 0.8)',
+    lineHeight: 23,
   },
-  actionButtons: {
+  detailActions: {
     position: 'absolute',
     bottom: 0,
     left: 0,
@@ -338,152 +407,163 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     padding: 16,
-    backgroundColor: '#0a0a0a',
+    paddingBottom: 32,
+    backgroundColor: 'rgba(12, 5, 32, 0.95)',
     borderTopWidth: 1,
-    borderTopColor: '#2a2a2a',
+    borderTopColor: 'rgba(124, 58, 237, 0.15)',
   },
-  editButton: {
+  editBtn: {
     flex: 1,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  actionBtnGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#6366f1',
-    borderRadius: 12,
     paddingVertical: 14,
   },
-  editButtonText: {
+  actionBtnText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600' as const,
   },
-  deleteButton: {
+  deleteBtn: {
     flex: 1,
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+  },
+  deleteBtnInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#ef4444',
-    borderRadius: 12,
     paddingVertical: 14,
   },
-  deleteButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
+  deleteBtnText: {
+    color: '#ef4444',
+    fontSize: 15,
     fontWeight: '600' as const,
   },
+
   editHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#1a1a1a',
+    paddingVertical: 14,
+    paddingTop: 56,
     borderBottomWidth: 1,
-    borderBottomColor: '#2a2a2a',
+    borderBottomColor: 'rgba(124, 58, 237, 0.15)',
   },
-  headerButton: {
+  headerBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     padding: 8,
   },
-  headerButtonText: {
+  headerBtnText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600' as const,
-  },
-  saveText: {
-    color: '#6366f1',
   },
   editContent: {
     padding: 20,
+    paddingBottom: 40,
   },
-  label: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: '#ffffff',
+  editLabel: {
+    fontSize: 14,
+    fontWeight: '500' as const,
+    color: 'rgba(200, 190, 220, 0.8)',
     marginBottom: 8,
     marginTop: 16,
   },
-  input: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
+  editInput: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 14,
     padding: 16,
-    fontSize: 16,
+    fontSize: 15,
     color: '#ffffff',
     borderWidth: 1,
-    borderColor: '#2a2a2a',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
-  textArea: {
-    minHeight: 120,
+  editTextArea: {
+    minHeight: 100,
     paddingTop: 16,
   },
-  categoryContainer: {
+  editMoodGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
   },
-  categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#1a1a1a',
+  editMoodTag: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    gap: 4,
     borderWidth: 1,
-    borderColor: '#2a2a2a',
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    minWidth: 72,
   },
-  categoryChipActive: {
-    backgroundColor: '#6366f1',
-    borderColor: '#6366f1',
+  editMoodTagActive: {
+    backgroundColor: 'rgba(124, 58, 237, 0.35)',
+    borderColor: 'rgba(124, 58, 237, 0.6)',
   },
-  categoryText: {
-    fontSize: 14,
-    color: '#d1d5db',
-    fontWeight: '500' as const,
+  editMoodEmoji: {
+    fontSize: 18,
   },
-  categoryTextActive: {
+  editMoodLabel: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    color: 'rgba(200, 190, 220, 0.6)',
+  },
+  editMoodLabelActive: {
     color: '#ffffff',
   },
-  imagePickerContainer: {
+  editImageButtons: {
     flexDirection: 'row',
     gap: 12,
   },
-  imagePickerButton: {
+  editImageBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: 'rgba(124, 58, 237, 0.15)',
     borderRadius: 12,
-    padding: 16,
+    padding: 14,
     borderWidth: 1,
-    borderColor: '#6366f1',
+    borderColor: 'rgba(124, 58, 237, 0.25)',
   },
-  imagePickerText: {
-    color: '#ffffff',
-    fontSize: 14,
+  editImageBtnText: {
+    color: '#c4b5fd',
+    fontSize: 13,
     fontWeight: '600' as const,
   },
-  imagePreviewContainer: {
+  editImagePreviewWrap: {
     marginTop: 12,
-  },
-  imagePreviewWrapper: {
-    marginRight: 12,
+    borderRadius: 14,
+    overflow: 'hidden',
     position: 'relative',
   },
-  imagePreview: {
-    width: 100,
-    height: 100,
-    borderRadius: 12,
-    backgroundColor: '#1a1a1a',
+  editImagePreview: {
+    width: '100%',
+    height: 180,
+    borderRadius: 14,
   },
-  removeImageButton: {
+  editRemoveImg: {
     position: 'absolute',
-    top: 4,
-    right: 4,
-    backgroundColor: 'rgba(239, 68, 68, 0.9)',
-    borderRadius: 12,
-    padding: 4,
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(239, 68, 68, 0.8)',
+    borderRadius: 14,
+    padding: 6,
   },
 });

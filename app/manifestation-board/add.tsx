@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -8,36 +8,50 @@ import {
   ScrollView,
   Alert,
   Platform,
-  ImageBackground,
 } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Camera, Trash2, ImageIcon } from 'lucide-react-native';
+import { Upload, Camera, X } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { manifestationsDb } from '@/lib/database';
 import type { Manifestation } from '@/types';
 
-const CATEGORIES = ['wealth', 'love', 'health', 'career', 'relationships', 'other'] as const;
+const MOOD_TAGS: {
+  key: Manifestation['category'];
+  label: string;
+  emoji: string;
+}[] = [
+  { key: 'wealth', label: 'Wealth', emoji: '💰' },
+  { key: 'love', label: 'Love', emoji: '💞' },
+  { key: 'health', label: 'Health', emoji: '🌿' },
+  { key: 'focus', label: 'Focus', emoji: '🎯' },
+  { key: 'creativity', label: 'Creativity', emoji: '🎨' },
+  { key: 'healing', label: 'Healing', emoji: '💫' },
+];
 
 export default function AddManifestationScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const [title, setTitle] = useState('');
-  const [category, setCategory] = useState<typeof CATEGORIES[number]>('wealth');
   const [intention, setIntention] = useState('');
-  const [images, setImages] = useState<string[]>([]);
+  const [selectedMood, setSelectedMood] = useState<Manifestation['category'] | null>(null);
+  const [imageUri, setImageUri] = useState<string | null>(null);
 
   const createMutation = useMutation({
     mutationFn: (manifestation: Manifestation) => manifestationsDb.create(manifestation),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['manifestations'] });
+      void queryClient.invalidateQueries({ queryKey: ['manifestations'] });
       router.back();
+    },
+    onError: (error) => {
+      console.error('[AddManifestation] Create failed:', error);
+      Alert.alert('Error', 'Failed to create manifestation. Please try again.');
     },
   });
 
-  const requestPermissions = async () => {
+  const requestPermissions = useCallback(async () => {
     if (Platform.OS !== 'web') {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
@@ -46,34 +60,35 @@ export default function AddManifestationScreen() {
       }
     }
     return true;
-  };
+  }, []);
 
-  const handlePickImage = async () => {
+  const handleUpload = useCallback(async () => {
     try {
       const hasPermission = await requestPermissions();
       if (!hasPermission) return;
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsMultipleSelection: true,
+        allowsEditing: true,
         quality: 0.8,
-        selectionLimit: 5,
       });
 
-      if (!result.canceled && result.assets) {
-        const newImages = result.assets.map(asset => asset.uri);
-        setImages(prev => [...prev, ...newImages].slice(0, 5));
+      if (!result.canceled && result.assets && result.assets[0]) {
+        setImageUri(result.assets[0].uri);
+        console.log('[AddManifestation] Image selected:', result.assets[0].uri);
       }
     } catch (error) {
-      console.error('Error picking image:', error);
+      console.error('[AddManifestation] Error picking image:', error);
       Alert.alert('Error', 'Failed to pick image');
     }
-  };
+  }, [requestPermissions]);
 
-  const handleTakePhoto = async () => {
+  const handleCamera = useCallback(async () => {
     try {
-      const hasPermission = await requestPermissions();
-      if (!hasPermission) return;
+      if (Platform.OS === 'web') {
+        Alert.alert('Not Available', 'Camera is not available on web. Please use Upload instead.');
+        return;
+      }
 
       const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
       if (cameraPermission.status !== 'granted') {
@@ -87,126 +102,171 @@ export default function AddManifestationScreen() {
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
-        setImages(prev => [...prev, result.assets[0].uri].slice(0, 5));
+        setImageUri(result.assets[0].uri);
+        console.log('[AddManifestation] Photo captured:', result.assets[0].uri);
       }
     } catch (error) {
-      console.error('Error taking photo:', error);
+      console.error('[AddManifestation] Error taking photo:', error);
       Alert.alert('Error', 'Failed to take photo');
     }
-  };
+  }, []);
 
-  const handleRemoveImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index));
-  };
+  const handleRemoveImage = useCallback(() => {
+    setImageUri(null);
+  }, []);
 
-  const handleSave = () => {
-    if (!title.trim()) {
-      Alert.alert('Error', 'Please enter a title');
+  const handleCreate = useCallback(() => {
+    if (!intention.trim() && !imageUri) {
+      Alert.alert('Missing Info', 'Please add a vision image or write an intention.');
       return;
     }
 
     const manifestation: Manifestation = {
       id: Date.now().toString(),
-      title: title.trim(),
+      title: intention.trim() || 'My Vision',
       description: '',
-      category,
+      category: selectedMood ?? 'other',
       intention: intention.trim(),
-      images,
+      images: imageUri ? [imageUri] : [],
       isFavorite: false,
       order: 0,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
 
+    console.log('[AddManifestation] Creating manifestation:', manifestation.id);
     createMutation.mutate(manifestation);
-  };
+  }, [intention, imageUri, selectedMood, createMutation]);
 
   return (
     <View style={styles.container}>
-      <ImageBackground
-        source={{ uri: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/kflyhi3p0jh7nuw0u9n1u' }}
-        style={styles.backgroundImage}
-        resizeMode="cover"
+      <Stack.Screen
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+        }}
+      />
+
+      <LinearGradient
+        colors={['#1a0a3e', '#0c0520', '#0d1033']}
+        style={styles.background}
       >
-        <View style={styles.overlay} />
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        <Text style={styles.label}>Title</Text>
-        <TextInput
-          style={styles.input}
-          value={title}
-          onChangeText={setTitle}
-          placeholder="My manifestation..."
-          placeholderTextColor="#9ca3af"
-        />
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.header}>
+            <Text style={styles.headerEmoji}>✨</Text>
+            <Text style={styles.headerTitle}>Add Manifestation</Text>
+          </View>
 
-        <Text style={styles.label}>Category</Text>
-        <View style={styles.categoryContainer}>
-          {CATEGORIES.map((cat) => (
-            <TouchableOpacity
-              key={cat}
-              style={[styles.categoryChip, category === cat && styles.categoryChipActive]}
-              onPress={() => setCategory(cat)}
-            >
-              <Text
-                style={[styles.categoryText, category === cat && styles.categoryTextActive]}
-              >
-                {cat.charAt(0).toUpperCase() + cat.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <Text style={styles.label}>Intention</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={intention}
-          onChangeText={setIntention}
-          placeholder="Describe your intention..."
-          placeholderTextColor="#9ca3af"
-          multiline
-          numberOfLines={4}
-          textAlignVertical="top"
-        />
-
-        <Text style={styles.label}>Images (optional, up to 5)</Text>
-        <View style={styles.imagePickerContainer}>
-          <TouchableOpacity style={styles.imagePickerButton} onPress={handlePickImage}>
-            <ImageIcon color="#ffffff" size={24} />
-            <Text style={styles.imagePickerText}>Choose Photos</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.imagePickerButton} onPress={handleTakePhoto}>
-            <Camera color="#ffffff" size={24} />
-            <Text style={styles.imagePickerText}>Take Photo</Text>
-          </TouchableOpacity>
-        </View>
-
-        {images.length > 0 && (
-          <ScrollView horizontal style={styles.imagePreviewContainer} showsHorizontalScrollIndicator={false}>
-            {images.map((uri, index) => (
-              <View key={index} style={styles.imagePreviewWrapper}>
-                <Image source={{ uri }} style={styles.imagePreview} contentFit="cover" />
+          <Text style={styles.sectionLabel}>Vision Image</Text>
+          <View style={styles.imageUploadArea}>
+            {imageUri ? (
+              <View style={styles.imagePreviewContainer}>
+                <Image
+                  source={{ uri: imageUri }}
+                  style={styles.imagePreview}
+                  contentFit="cover"
+                />
                 <TouchableOpacity
                   style={styles.removeImageButton}
-                  onPress={() => handleRemoveImage(index)}
+                  onPress={handleRemoveImage}
+                  activeOpacity={0.7}
                 >
-                  <Trash2 color="#ffffff" size={16} />
+                  <X color="#ffffff" size={18} />
                 </TouchableOpacity>
               </View>
-            ))}
-          </ScrollView>
-        )}
+            ) : (
+              <View style={styles.uploadPlaceholder}>
+                <View style={styles.uploadButtonsRow}>
+                  <TouchableOpacity
+                    style={styles.uploadButton}
+                    onPress={handleUpload}
+                    activeOpacity={0.7}
+                    testID="upload-button"
+                  >
+                    <Upload color="#c4b5fd" size={24} />
+                    <Text style={styles.uploadButtonText}>Upload</Text>
+                  </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.saveButton}
-          onPress={handleSave}
-          disabled={createMutation.isPending}
-        >
-          <Text style={styles.saveButtonText}>
-            {createMutation.isPending ? 'Saving...' : 'Save Manifestation'}
-          </Text>
-        </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.uploadButton}
+                    onPress={handleCamera}
+                    activeOpacity={0.7}
+                    testID="camera-button"
+                  >
+                    <Camera color="#c4b5fd" size={24} />
+                    <Text style={styles.uploadButtonText}>Camera</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+
+          <Text style={styles.sectionLabel}>Your Intention</Text>
+          <TextInput
+            style={styles.intentionInput}
+            value={intention}
+            onChangeText={setIntention}
+            placeholder="I am attracting abundance and joy..."
+            placeholderTextColor="rgba(180, 170, 200, 0.5)"
+            multiline
+            numberOfLines={5}
+            textAlignVertical="top"
+            testID="intention-input"
+          />
+
+          <Text style={styles.sectionLabel}>Mood Tag (optional)</Text>
+          <View style={styles.moodGrid}>
+            {MOOD_TAGS.map((tag) => (
+              <TouchableOpacity
+                key={tag.key}
+                style={[
+                  styles.moodTag,
+                  selectedMood === tag.key && styles.moodTagActive,
+                ]}
+                onPress={() =>
+                  setSelectedMood((prev) => (prev === tag.key ? null : tag.key))
+                }
+                activeOpacity={0.7}
+                testID={`mood-${tag.key}`}
+              >
+                <Text style={styles.moodEmoji}>{tag.emoji}</Text>
+                <Text
+                  style={[
+                    styles.moodLabel,
+                    selectedMood === tag.key && styles.moodLabelActive,
+                  ]}
+                >
+                  {tag.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <TouchableOpacity
+            style={styles.createButton}
+            onPress={handleCreate}
+            disabled={createMutation.isPending}
+            activeOpacity={0.8}
+            testID="create-portal-button"
+          >
+            <LinearGradient
+              colors={['#7c3aed', '#4f46e5', '#3b82f6']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.createButtonGradient}
+            >
+              <Text style={styles.createButtonText}>
+                {createMutation.isPending ? 'Creating...' : 'Create Portal'}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
         </ScrollView>
-      </ImageBackground>
+      </LinearGradient>
     </View>
   );
 }
@@ -214,133 +274,164 @@ export default function AddManifestationScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#0c0520',
   },
-  backgroundImage: {
+  background: {
     flex: 1,
-    width: '100%',
-    height: '100%',
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   scrollView: {
     flex: 1,
   },
-  content: {
-    padding: 20,
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 56,
+    paddingBottom: 40,
   },
-  label: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: '#ffffff',
-    marginBottom: 8,
-    marginTop: 16,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  input: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-  },
-  textArea: {
-    minHeight: 120,
-    paddingTop: 16,
-  },
-  categoryContainer: {
+  header: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 28,
   },
-  categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#1a1a1a',
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
+  headerEmoji: {
+    fontSize: 22,
   },
-  categoryChipActive: {
-    backgroundColor: '#6366f1',
-    borderColor: '#6366f1',
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700' as const,
+    color: '#ffffff',
+    letterSpacing: 0.3,
   },
-  categoryText: {
+  sectionLabel: {
     fontSize: 14,
-    color: '#d1d5db',
     fontWeight: '500' as const,
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    color: 'rgba(200, 190, 220, 0.8)',
+    marginBottom: 10,
+    marginTop: 4,
   },
-  categoryTextActive: {
-    color: '#ffffff',
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+  imageUploadArea: {
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: 'rgba(124, 58, 237, 0.3)',
+    borderStyle: 'dashed' as const,
+    overflow: 'hidden',
+    marginBottom: 24,
+    minHeight: 200,
+    backgroundColor: 'rgba(124, 58, 237, 0.06)',
   },
-  saveButton: {
-    backgroundColor: '#6366f1',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 32,
-    marginBottom: 40,
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: '#ffffff',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  imagePickerContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  imagePickerButton: {
+  uploadPlaceholder: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#6366f1',
+    alignItems: 'center',
+    paddingVertical: 50,
   },
-  imagePickerText: {
-    color: '#ffffff',
-    fontSize: 14,
+  uploadButtonsRow: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  uploadButton: {
+    backgroundColor: 'rgba(124, 58, 237, 0.2)',
+    borderRadius: 14,
+    paddingVertical: 18,
+    paddingHorizontal: 28,
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(124, 58, 237, 0.25)',
+  },
+  uploadButtonText: {
+    fontSize: 13,
     fontWeight: '600' as const,
+    color: '#c4b5fd',
   },
   imagePreviewContainer: {
-    marginTop: 12,
-  },
-  imagePreviewWrapper: {
-    marginRight: 12,
+    width: '100%',
+    height: 240,
     position: 'relative',
   },
   imagePreview: {
-    width: 100,
-    height: 100,
-    borderRadius: 12,
-    backgroundColor: '#1a1a1a',
+    width: '100%',
+    height: '100%',
   },
   removeImageButton: {
     position: 'absolute',
-    top: 4,
-    right: 4,
-    backgroundColor: 'rgba(239, 68, 68, 0.9)',
+    top: 10,
+    right: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  intentionInput: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 14,
+    padding: 16,
+    fontSize: 15,
+    color: '#ffffff',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    minHeight: 120,
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  moodGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 32,
+  },
+  moodTag: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: 12,
-    padding: 4,
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    width: '23%' as any,
+    minWidth: 72,
+  },
+  moodTagActive: {
+    backgroundColor: 'rgba(124, 58, 237, 0.35)',
+    borderColor: 'rgba(124, 58, 237, 0.6)',
+    shadowColor: '#7c3aed',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  moodEmoji: {
+    fontSize: 20,
+  },
+  moodLabel: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    color: 'rgba(200, 190, 220, 0.6)',
+  },
+  moodLabelActive: {
+    color: '#ffffff',
+  },
+  createButton: {
+    borderRadius: 28,
+    overflow: 'hidden',
+    shadowColor: '#7c3aed',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  createButtonGradient: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  createButtonText: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: '#ffffff',
+    letterSpacing: 0.3,
   },
 });

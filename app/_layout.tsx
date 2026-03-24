@@ -20,9 +20,9 @@ function RootLayoutNav() {
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
       <Stack.Screen name="auth" options={{ title: "Welcome", headerShown: false }} />
       <Stack.Screen name="index" options={{ title: "Alchemize", headerShown: false }} />
-      <Stack.Screen name="manifestation-board/index" options={{ title: "Manifestation Board" }} />
-      <Stack.Screen name="manifestation-board/[id]" options={{ title: "Manifestation Detail" }} />
-      <Stack.Screen name="manifestation-board/add" options={{ title: "Add Manifestation", presentation: "modal" }} />
+      <Stack.Screen name="manifestation-board/index" options={{ title: "Portal Board", headerShown: false }} />
+      <Stack.Screen name="manifestation-board/[id]" options={{ title: "Manifestation Detail", headerStyle: { backgroundColor: '#0c0520' }, headerTintColor: '#ffffff' }} />
+      <Stack.Screen name="manifestation-board/add" options={{ title: "Add Manifestation", headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="manifestation-board/slideshow" options={{ title: "Slideshow", headerShown: false, presentation: "fullScreenModal" }} />
       <Stack.Screen name="goals/index" options={{ title: "Goals" }} />
       <Stack.Screen name="goals/[id]" options={{ title: "Goal Detail" }} />

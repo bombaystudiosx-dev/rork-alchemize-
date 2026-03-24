@@ -1,260 +1,350 @@
-import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Text, Dimensions, Alert, ImageBackground, Animated } from 'react-native';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Text,
+  Dimensions,
+  Alert,
+  Animated,
+  Switch,
+} from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter, Stack } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Play, Edit2, ArrowLeft } from 'lucide-react-native';
+import { Plus, Sparkles, Play } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { manifestationsDb } from '@/lib/database';
 import type { Manifestation } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_MARGIN = 16;
-const CARD_WIDTH = (SCREEN_WIDTH - 32 - CARD_MARGIN) / 2;
+const CARD_GAP = 12;
+const CARD_WIDTH = (SCREEN_WIDTH - 32 - CARD_GAP) / 2;
+const CARD_HEIGHT = CARD_WIDTH * 1.3;
 const MAX_MANIFESTATIONS = 25;
+
+const MOOD_TAGS: { key: string; label: string; emoji: string }[] = [
+  { key: 'all', label: 'All', emoji: '✨' },
+  { key: 'wealth', label: 'Wealth', emoji: '💰' },
+  { key: 'love', label: 'Love', emoji: '💞' },
+  { key: 'health', label: 'Health', emoji: '🌿' },
+  { key: 'focus', label: 'Focus', emoji: '🎯' },
+  { key: 'creativity', label: 'Creativity', emoji: '🎨' },
+  { key: 'healing', label: 'Healing', emoji: '💫' },
+];
+
+const MOOD_EMOJI_MAP: Record<string, string> = {
+  wealth: '💰',
+  love: '💞',
+  health: '🌿',
+  focus: '🎯',
+  creativity: '🎨',
+  healing: '💫',
+  career: '🎯',
+  relationships: '💞',
+  other: '✨',
+};
 
 export default function ManifestationBoardScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const floatAnim = useRef(new Animated.Value(0)).current;
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [ritualEnabled, setRitualEnabled] = useState(false);
+  const starAnims = useRef(
+    Array.from({ length: 30 }, () => new Animated.Value(Math.random()))
+  ).current;
 
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(floatAnim, {
-          toValue: 1,
-          duration: 3000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(floatAnim, {
-          toValue: 0,
-          duration: 3000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, [floatAnim]);
+    starAnims.forEach((anim, _i) => {
+      const duration = 2000 + Math.random() * 3000;
+      const delay = Math.random() * 2000;
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(anim, {
+            toValue: 0.2,
+            duration: duration,
+            useNativeDriver: true,
+          }),
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: duration,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    });
+  }, [starAnims]);
 
   const { data: manifestations = [] } = useQuery({
     queryKey: ['manifestations'],
     queryFn: () => manifestationsDb.getAll(),
   });
 
-
-
   const deleteMutation = useMutation({
     mutationFn: (id: string) => manifestationsDb.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['manifestations'] });
+      void queryClient.invalidateQueries({ queryKey: ['manifestations'] });
     },
   });
 
-  const handleAddManifestation = () => {
+  const filteredManifestations = activeFilter === 'all'
+    ? manifestations
+    : manifestations.filter((m) => m.category === activeFilter);
+
+  const handleAddManifestation = useCallback(() => {
     if (manifestations.length >= MAX_MANIFESTATIONS) {
       Alert.alert('Limit Reached', `You can add up to ${MAX_MANIFESTATIONS} manifestations.`);
       return;
     }
     router.push('/manifestation-board/add' as any);
-  };
+    return;
+  }, [manifestations.length, router]);
 
-  const handleStartSlideshow = () => {
+  const handleStartSlideshow = useCallback(() => {
     if (manifestations.length === 0) {
       Alert.alert('No Manifestations', 'Add some manifestations first to start the ritual.');
       return;
     }
     router.push('/manifestation-board/slideshow' as any);
-  };
+  }, [manifestations.length, router]);
 
-  const handleDeleteCard = (id: string, title: string) => {
+  const handleDeleteCard = useCallback((id: string, title: string) => {
     Alert.alert(
       'Delete Manifestation',
       `Are you sure you want to delete "${title}"?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
+        {
+          text: 'Delete',
           style: 'destructive',
-          onPress: () => deleteMutation.mutate(id)
+          onPress: () => deleteMutation.mutate(id),
         },
       ]
     );
-  };
+  }, [deleteMutation]);
 
-  const placeholderSlots = Math.max(0, 3 - manifestations.length);
-  const allSlots = [...manifestations, ...Array(placeholderSlots).fill(null)];
-
-  const renderGridCard = (item: Manifestation | null, index: number) => {
-    const translateY = floatAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, -10],
-    });
-
-    if (item === null) {
-      return (
-        <Animated.View
-          key={`placeholder-${index}`}
-          style={[styles.gridCard, { transform: [{ translateY }] }]}
-        >
-          <TouchableOpacity
-            style={styles.placeholderCardTouchable}
-            onPress={handleAddManifestation}
-          >
-            <View style={styles.placeholderCard}>
-              <Plus color="#fbbf24" size={40} />
-              <Text style={styles.placeholderText}>Add{"\n"}Manifest</Text>
-            </View>
-          </TouchableOpacity>
-        </Animated.View>
-      );
+  const handleRitualToggle = useCallback((value: boolean) => {
+    setRitualEnabled(value);
+    if (value && manifestations.length > 0) {
+      handleStartSlideshow();
     }
+  }, [manifestations.length, handleStartSlideshow]);
+
+  const renderCard = useCallback((item: Manifestation) => {
+    const moodEmoji = MOOD_EMOJI_MAP[item.category];
 
     return (
-      <Animated.View
+      <TouchableOpacity
         key={item.id}
-        style={[styles.gridCard, { transform: [{ translateY }] }]}
+        style={styles.card}
+        onPress={() => router.push(`/manifestation-board/${item.id}` as any)}
+        onLongPress={() => handleDeleteCard(item.id, item.title)}
+        activeOpacity={0.85}
+        testID={`manifestation-card-${item.id}`}
       >
-        <TouchableOpacity
-          style={styles.cardTouchable}
-          onPress={() => router.push(`/manifestation-board/${item.id}` as any)}
-        >
         {item.images.length > 0 ? (
-          <Image source={{ uri: item.images[0] }} style={styles.gridCardImage} contentFit="cover" />
+          <Image
+            source={{ uri: item.images[0] }}
+            style={styles.cardImage}
+            contentFit="cover"
+          />
         ) : (
           <LinearGradient
-            colors={['#6366f1', '#8b5cf6']}
-            style={styles.gridCardImage}
+            colors={['#4c1d95', '#6d28d9', '#7c3aed']}
+            style={styles.cardImage}
           >
-            <Text style={styles.noImageText}>{item.title.charAt(0).toUpperCase()}</Text>
+            <Text style={styles.noImageInitial}>
+              {item.title.charAt(0).toUpperCase()}
+            </Text>
           </LinearGradient>
         )}
-        <View style={styles.cardActions}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => router.push(`/manifestation-board/${item.id}` as any)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Edit2 color="#ffffff" size={14} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => handleDeleteCard(item.id, item.title)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Trash2 color="#ef4444" size={14} />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.gridCardOverlay}>
-          <Text style={styles.gridCardTitle} numberOfLines={2}>{item.title}</Text>
-        </View>
-        </TouchableOpacity>
-      </Animated.View>
+
+        {moodEmoji && (
+          <View style={styles.moodBadge}>
+            <Text style={styles.moodEmoji}>{moodEmoji}</Text>
+          </View>
+        )}
+
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.75)']}
+          style={styles.cardGradient}
+        >
+          <Text style={styles.cardTitle} numberOfLines={3}>
+            {item.intention || item.title}
+          </Text>
+        </LinearGradient>
+      </TouchableOpacity>
     );
+  }, [router, handleDeleteCard]);
+
+  const renderStars = () => {
+    const stars: React.ReactNode[] = [];
+    for (let i = 0; i < 30; i++) {
+      const size = 1 + Math.random() * 2;
+      stars.push(
+        <Animated.View
+          key={`star-${i}`}
+          style={[
+            styles.star,
+            {
+              width: size,
+              height: size,
+              top: `${Math.random() * 100}%` as any,
+              left: `${Math.random() * 100}%` as any,
+              opacity: starAnims[i],
+            },
+          ]}
+        />
+      );
+    }
+    return stars;
   };
 
   return (
     <View style={styles.container}>
-      <Stack.Screen 
+      <Stack.Screen
         options={{
-          headerShown: true,
-          headerTransparent: true,
-          headerTitle: 'MANIFESTATION BOARD',
-          headerTitleStyle: {
-            color: '#ffffff',
-            fontSize: 16,
-            fontWeight: '700',
-            textShadowColor: '#fbbf24',
-            textShadowOffset: { width: 0, height: 0 },
-            textShadowRadius: 20,
-            letterSpacing: 2,
-          },
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 16 }}>
-              <ArrowLeft color="#ffffff" size={24} />
-            </TouchableOpacity>
-          ),
+          headerShown: false,
         }}
       />
-      <ImageBackground
-        source={{ uri: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/kflyhi3p0jh7nuw0u9n1u' }}
-        style={styles.backgroundImage}
-        resizeMode="cover"
+
+      <LinearGradient
+        colors={['#0c0520', '#1a0a3e', '#0d1b4a', '#0c0520']}
+        locations={[0, 0.3, 0.7, 1]}
+        style={styles.background}
       >
-        <View style={styles.overlay} />
-        <ScrollView 
+        <View style={styles.nebulaGlow1} />
+        <View style={styles.nebulaGlow2} />
+        <View style={styles.nebulaGlow3} />
+        {renderStars()}
+
+        <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
-          <View style={styles.contentSection}>
-
-            <View style={styles.gridContainer}>
-              {allSlots.map((item, index) => renderGridCard(item, index))}
+          <View style={styles.header}>
+            <View style={styles.headerTitleRow}>
+              <Text style={styles.headerTitle}>Portal Board</Text>
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={handleAddManifestation}
+                testID="add-manifestation-button"
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={['#7c3aed', '#6d28d9']}
+                  style={styles.addButtonGradient}
+                >
+                  <Plus color="#ffffff" size={24} strokeWidth={2.5} />
+                </LinearGradient>
+              </TouchableOpacity>
             </View>
           </View>
 
-        {manifestations.length > 3 && (
-          <View style={styles.additionalCards}>
-            <Text style={styles.sectionTitle}>All Manifestations</Text>
-            {manifestations.slice(3).map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.listCard}
-                onPress={() => router.push(`/manifestation-board/${item.id}` as any)}
-              >
-                {item.images.length > 0 ? (
-                  <Image source={{ uri: item.images[0] }} style={styles.listCardImage} contentFit="cover" />
-                ) : (
-                  <LinearGradient
-                    colors={['#6366f1', '#8b5cf6']}
-                    style={styles.listCardImage}
-                  >
-                    <Text style={styles.listNoImageText}>{item.title.charAt(0).toUpperCase()}</Text>
-                  </LinearGradient>
-                )}
-                <View style={styles.listCardContent}>
-                  <View style={styles.listCardTextContainer}>
-                    <Text style={styles.listCardTitle}>{item.title}</Text>
-                    <Text style={styles.listCardCategory}>{item.category}</Text>
-                    {item.intention && (
-                      <Text style={styles.listCardIntention} numberOfLines={2}>{item.intention}</Text>
-                    )}
-                  </View>
-                  <View style={styles.listCardActions}>
-                    <TouchableOpacity
-                      onPress={() => router.push(`/manifestation-board/${item.id}` as any)}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      style={styles.listActionButton}
-                    >
-                      <Edit2 color="#ffffff" size={18} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => handleDeleteCard(item.id, item.title)}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      style={styles.listActionButton}
-                    >
-                      <Trash2 color="#ef4444" size={18} />
-                    </TouchableOpacity>
-                  </View>
+          <View style={styles.ritualCard}>
+            <View style={styles.ritualCardInner}>
+              <View style={styles.ritualTextContainer}>
+                <View style={styles.ritualTitleRow}>
+                  <Text style={styles.ritualIcon}>☀️</Text>
+                  <Text style={styles.ritualTitle}>Morning Portal Ritual</Text>
                 </View>
+                <Text style={styles.ritualSubtitle}>
+                  Pause during each photo and envision and truly feel what it would be like to already have this
+                </Text>
+              </View>
+              <Switch
+                value={ritualEnabled}
+                onValueChange={handleRitualToggle}
+                trackColor={{ false: '#3b3154', true: '#7c3aed' }}
+                thumbColor="#ffffff"
+                style={styles.ritualSwitch}
+              />
+            </View>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.filterRow}
+            contentContainerStyle={styles.filterRowContent}
+          >
+            {MOOD_TAGS.map((tag) => (
+              <TouchableOpacity
+                key={tag.key}
+                style={[
+                  styles.filterPill,
+                  activeFilter === tag.key && styles.filterPillActive,
+                ]}
+                onPress={() => setActiveFilter(tag.key)}
+                activeOpacity={0.7}
+                testID={`filter-${tag.key}`}
+              >
+                <Text style={styles.filterEmoji}>{tag.emoji}</Text>
+                <Text
+                  style={[
+                    styles.filterLabel,
+                    activeFilter === tag.key && styles.filterLabelActive,
+                  ]}
+                >
+                  {tag.label}
+                </Text>
               </TouchableOpacity>
             ))}
-          </View>
-        )}
+          </ScrollView>
+
+          {filteredManifestations.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Sparkles color="#7c3aed" size={48} />
+              <Text style={styles.emptyTitle}>
+                {activeFilter === 'all'
+                  ? 'Your Portal Awaits'
+                  : `No ${activeFilter.charAt(0).toUpperCase() + activeFilter.slice(1)} manifestations yet`}
+              </Text>
+              <Text style={styles.emptySubtitle}>
+                Tap the + button to add your first vision
+              </Text>
+              <TouchableOpacity
+                style={styles.emptyAddButton}
+                onPress={handleAddManifestation}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={['#7c3aed', '#4f46e5']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.emptyAddButtonGradient}
+                >
+                  <Plus color="#ffffff" size={18} />
+                  <Text style={styles.emptyAddText}>Create Portal</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.grid}>
+              {filteredManifestations.map((item) => renderCard(item))}
+            </View>
+          )}
         </ScrollView>
-        <TouchableOpacity 
-          onPress={handleStartSlideshow}
-          style={styles.playButtonBottomLeft}
-        >
-          <Play color="#ffffff" size={18} fill="#fbbf24" />
-        </TouchableOpacity>
-        {manifestations.length < MAX_MANIFESTATIONS && (
+
+        {manifestations.length > 0 && (
           <TouchableOpacity
-            style={styles.fab}
-            onPress={handleAddManifestation}
+            style={styles.playFab}
+            onPress={handleStartSlideshow}
+            activeOpacity={0.8}
+            testID="slideshow-button"
           >
-            <Plus color="#fff" size={20} />
+            <LinearGradient
+              colors={['#7c3aed', '#6d28d9']}
+              style={styles.playFabGradient}
+            >
+              <Play color="#ffffff" size={18} fill="#ffffff" />
+            </LinearGradient>
           </TouchableOpacity>
         )}
-      </ImageBackground>
+      </LinearGradient>
     </View>
   );
 }
@@ -262,210 +352,273 @@ export default function ManifestationBoardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#0c0520',
   },
-  backgroundImage: {
+  background: {
     flex: 1,
-    width: '100%',
-    height: '100%',
   },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  nebulaGlow1: {
+    position: 'absolute',
+    top: '10%',
+    left: '-20%',
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: 'rgba(124, 58, 237, 0.15)',
+  },
+  nebulaGlow2: {
+    position: 'absolute',
+    top: '40%',
+    right: '-15%',
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+  },
+  nebulaGlow3: {
+    position: 'absolute',
+    bottom: '5%',
+    left: '20%',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+  },
+  star: {
+    position: 'absolute',
+    borderRadius: 10,
+    backgroundColor: '#ffffff',
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingTop: 164,
+    paddingTop: 60,
     paddingBottom: 100,
+    paddingHorizontal: 16,
   },
-  contentSection: {
-    padding: 16,
-  },
-  playButtonBottomLeft: {
-    position: 'absolute',
-    bottom: 24,
-    left: 24,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#fbbf24',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#fbbf24',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: CARD_MARGIN,
+  header: {
     marginBottom: 16,
   },
-  gridCard: {
-    width: CARD_WIDTH,
-    height: CARD_WIDTH * 1.4,
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
   },
-  cardTouchable: {
-    flex: 1,
-    borderRadius: 20,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 2,
-    borderColor: '#fbbf24',
-    shadowColor: '#fbbf24',
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700' as const,
+    color: '#ffffff',
+    textAlign: 'center',
+    letterSpacing: 0.5,
+  },
+  addButton: {
+    position: 'absolute',
+    right: 0,
+    shadowColor: '#7c3aed',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.6,
-    shadowRadius: 15,
-    elevation: 10,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  placeholderCardTouchable: {
-    flex: 1,
-  },
-  placeholderCard: {
-    flex: 1,
+  addButtonGradient: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#fbbf24',
-    borderStyle: 'dashed' as const,
-    borderRadius: 18,
   },
-  placeholderText: {
-    marginTop: 8,
-    color: '#fbbf24',
+  ritualCard: {
+    marginBottom: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  ritualCardInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  ritualTextContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
+  ritualTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  ritualIcon: {
+    fontSize: 16,
+  },
+  ritualTitle: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#ffffff',
+  },
+  ritualSubtitle: {
+    fontSize: 12,
+    color: 'rgba(200, 190, 220, 0.8)',
+    lineHeight: 17,
+  },
+  ritualSwitch: {
+    transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }],
+  },
+  filterRow: {
+    marginBottom: 20,
+    maxHeight: 46,
+  },
+  filterRowContent: {
+    gap: 8,
+    paddingRight: 8,
+  },
+  filterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  filterPillActive: {
+    backgroundColor: 'rgba(124, 58, 237, 0.5)',
+    borderColor: 'rgba(124, 58, 237, 0.7)',
+    shadowColor: '#7c3aed',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  filterEmoji: {
     fontSize: 14,
-    fontWeight: '700' as const,
-    textAlign: 'center',
-    textShadowColor: '#fbbf24',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
   },
-  gridCardImage: {
+  filterLabel: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: 'rgba(200, 190, 220, 0.7)',
+  },
+  filterLabelActive: {
+    color: '#ffffff',
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: CARD_GAP,
+  },
+  card: {
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(124, 58, 237, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(124, 58, 237, 0.25)',
+  },
+  cardImage: {
     width: '100%',
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  noImageText: {
-    fontSize: 40,
+  noImageInitial: {
+    fontSize: 48,
     fontWeight: '700' as const,
-    color: '#ffffff',
+    color: 'rgba(255, 255, 255, 0.5)',
   },
-  gridCardOverlay: {
+  moodBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  moodEmoji: {
+    fontSize: 14,
+  },
+  cardGradient: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    paddingTop: 40,
+    justifyContent: 'flex-end',
   },
-  gridCardTitle: {
+  cardTitle: {
     color: '#ffffff',
     fontSize: 13,
-    fontWeight: '700' as const,
-    textAlign: 'center',
-    textShadowColor: '#fbbf24',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
-  },
-  cardActions: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    flexDirection: 'row',
-    gap: 6,
-  },
-  actionButton: {
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 16,
-    padding: 6,
-  },
-
-  additionalCards: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700' as const,
-    color: '#ffffff',
-    marginBottom: 16,
-  },
-  listCard: {
-    flexDirection: 'row',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-    marginBottom: 12,
-    height: 100,
-  },
-  listCardImage: {
-    width: 100,
-    height: 100,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  listNoImageText: {
-    fontSize: 32,
-    fontWeight: '700' as const,
-    color: '#ffffff',
-  },
-  listCardContent: {
-    flex: 1,
-    padding: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  listCardTextContainer: {
-    flex: 1,
-  },
-  listCardTitle: {
-    fontSize: 15,
-    fontWeight: '700' as const,
-    color: '#ffffff',
-    marginBottom: 4,
-  },
-  listCardCategory: {
-    fontSize: 11,
-    color: '#818cf8',
     fontWeight: '600' as const,
-    marginBottom: 4,
+    lineHeight: 18,
   },
-  listCardIntention: {
-    fontSize: 12,
-    color: '#9ca3af',
-    lineHeight: 16,
+  emptyState: {
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingHorizontal: 32,
   },
-  listCardActions: {
-    flexDirection: 'column',
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: '#ffffff',
+    marginTop: 20,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: 'rgba(200, 190, 220, 0.7)',
+    marginTop: 8,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  emptyAddButton: {
+    marginTop: 28,
+    borderRadius: 28,
+    overflow: 'hidden',
+    shadowColor: '#7c3aed',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  emptyAddButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
-    justifyContent: 'center',
+    paddingHorizontal: 28,
+    paddingVertical: 14,
   },
-  listActionButton: {
-    padding: 4,
+  emptyAddText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#ffffff',
   },
-  fab: {
+  playFab: {
     position: 'absolute',
     bottom: 24,
-    right: 24,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#fbbf24',
+    left: 24,
+    shadowColor: '#7c3aed',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  playFabGradient: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#fbbf24',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 20,
-    elevation: 10,
-    borderWidth: 2,
-    borderColor: '#ffffff',
   },
 });

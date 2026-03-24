@@ -12,7 +12,7 @@ export interface Manifestation {
   id: string;
   title: string;
   description: string;
-  category: 'love' | 'wealth' | 'health' | 'career' | 'relationships' | 'other';
+  category: 'love' | 'wealth' | 'health' | 'career' | 'relationships' | 'other' | 'focus' | 'creativity' | 'healing';
   intention: string;
   images: string[];
   isFavorite: boolean;
