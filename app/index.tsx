@@ -342,6 +342,20 @@ export default function HomeScreen() {
   const router = useRouter();
   const scrollViewRef = useRef<ScrollView>(null);
   const [currentPage, setCurrentPage] = useState(0);
+  const screenWidth = Dimensions.get('window').width;
+
+  const goToPage = useCallback((page: number) => {
+    scrollViewRef.current?.scrollTo({ x: page * screenWidth, animated: true });
+    setCurrentPage(page);
+  }, [screenWidth]);
+
+  const goToPrevCard = useCallback(() => {
+    if (currentPage > 0) goToPage(currentPage - 1);
+  }, [currentPage, goToPage]);
+
+  const goToNextCard = useCallback((total: number) => {
+    if (currentPage < total - 1) goToPage(currentPage + 1);
+  }, [currentPage, goToPage]);
   const [featureCards, setFeatureCards] = useState<FeatureCard[]>(ALL_FEATURE_CARDS);
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -697,16 +711,36 @@ export default function HomeScreen() {
         </ScrollView>
 
         <View style={styles.footer}>
-          <View style={styles.dotsContainer}>
-            {featureCards.map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.dot,
-                  currentPage === index && styles.dotActive,
-                ]}
-              />
-            ))}
+          <View style={styles.navRow}>
+            <TouchableOpacity
+              onPress={goToPrevCard}
+              style={[styles.navArrow, currentPage === 0 && styles.navArrowDisabled]}
+              activeOpacity={0.7}
+              disabled={currentPage === 0}
+            >
+              <ChevronLeft size={22} color={currentPage === 0 ? 'rgba(255,255,255,0.2)' : '#fff'} />
+            </TouchableOpacity>
+            <View style={styles.dotsContainer}>
+              {featureCards.map((_, index) => (
+                <TouchableOpacity
+                  key={index}
+                  onPress={() => goToPage(index)}
+                  style={[
+                    styles.dot,
+                    currentPage === index && styles.dotActive,
+                  ]}
+                  activeOpacity={0.7}
+                />
+              ))}
+            </View>
+            <TouchableOpacity
+              onPress={() => goToNextCard(featureCards.length)}
+              style={[styles.navArrow, currentPage === featureCards.length - 1 && styles.navArrowDisabled]}
+              activeOpacity={0.7}
+              disabled={currentPage === featureCards.length - 1}
+            >
+              <ChevronRight size={22} color={currentPage === featureCards.length - 1 ? 'rgba(255,255,255,0.2)' : '#fff'} />
+            </TouchableOpacity>
           </View>
           <Text style={styles.pageCounter}>
             {currentPage + 1} of {featureCards.length}
@@ -1121,9 +1155,30 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     alignItems: 'center',
   },
+  navRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  navArrow: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  navArrowDisabled: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
   dotsContainer: {
     flexDirection: 'row',
-    marginBottom: 12,
+    alignItems: 'center',
   },
   dot: {
     width: 6,
@@ -1264,6 +1319,20 @@ interface OrbitalHomeScreenProps {
 function OrbitalHomeScreen({ featureCards, onCardPress, router, calendarEvents, selectedWeekStart, onWeekChange, onDayPress, selectedDate, dayModalVisible, setDayModalVisible, getEventsForDate, getEventTitle, getEventRoute, getEventColor, calendarVisible }: OrbitalHomeScreenProps) {
   const scrollViewRef = useRef<ScrollView>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
+
+  const goToOrbitalPage = useCallback((page: number) => {
+    const sw = Dimensions.get('window').width;
+    scrollViewRef.current?.scrollTo({ x: page * sw, animated: true });
+    setSelectedIndex(page);
+  }, []);
+
+  const goToPrevOrbital = useCallback(() => {
+    if (selectedIndex > 0) goToOrbitalPage(selectedIndex - 1);
+  }, [selectedIndex, goToOrbitalPage]);
+
+  const goToNextOrbital = useCallback((total: number) => {
+    if (selectedIndex < total - 1) goToOrbitalPage(selectedIndex + 1);
+  }, [selectedIndex, goToOrbitalPage]);
   const scrollX = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
   const tiltX = useRef(new Animated.Value(0)).current;
@@ -1498,16 +1567,36 @@ function OrbitalHomeScreen({ featureCards, onCardPress, router, calendarEvents, 
         </Animated.ScrollView>
 
         <View style={orbitalStyles.footer}>
-          <View style={orbitalStyles.dotsContainer}>
-            {featureCards.map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  orbitalStyles.dot,
-                  selectedIndex === index && orbitalStyles.dotActive,
-                ]}
-              />
-            ))}
+          <View style={orbitalStyles.navRow}>
+            <TouchableOpacity
+              onPress={goToPrevOrbital}
+              style={[orbitalStyles.navArrow, selectedIndex === 0 && orbitalStyles.navArrowDisabled]}
+              activeOpacity={0.7}
+              disabled={selectedIndex === 0}
+            >
+              <ChevronLeft size={22} color={selectedIndex === 0 ? 'rgba(167,139,250,0.2)' : '#a78bfa'} />
+            </TouchableOpacity>
+            <View style={orbitalStyles.dotsContainer}>
+              {featureCards.map((_, index) => (
+                <TouchableOpacity
+                  key={index}
+                  onPress={() => goToOrbitalPage(index)}
+                  style={[
+                    orbitalStyles.dot,
+                    selectedIndex === index && orbitalStyles.dotActive,
+                  ]}
+                  activeOpacity={0.7}
+                />
+              ))}
+            </View>
+            <TouchableOpacity
+              onPress={() => goToNextOrbital(featureCards.length)}
+              style={[orbitalStyles.navArrow, selectedIndex === featureCards.length - 1 && orbitalStyles.navArrowDisabled]}
+              activeOpacity={0.7}
+              disabled={selectedIndex === featureCards.length - 1}
+            >
+              <ChevronRight size={22} color={selectedIndex === featureCards.length - 1 ? 'rgba(167,139,250,0.2)' : '#a78bfa'} />
+            </TouchableOpacity>
           </View>
           <Text style={orbitalStyles.pageCounter}>
             {selectedIndex + 1} of {featureCards.length}
@@ -1752,9 +1841,30 @@ const orbitalStyles = StyleSheet.create({
     paddingVertical: 20,
     alignItems: 'center',
   },
+  navRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  navArrow: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(167,139,250,0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(167,139,250,0.3)',
+  },
+  navArrowDisabled: {
+    backgroundColor: 'rgba(167,139,250,0.04)',
+    borderColor: 'rgba(167,139,250,0.1)',
+  },
   dotsContainer: {
     flexDirection: 'row',
-    marginBottom: 12,
+    alignItems: 'center',
   },
   dot: {
     width: 6,
