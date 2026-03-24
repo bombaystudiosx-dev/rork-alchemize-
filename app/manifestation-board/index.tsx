@@ -9,6 +9,7 @@ import {
   Alert,
   Animated,
   Switch,
+  ImageBackground,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter, Stack } from 'expo-router';
@@ -215,14 +216,12 @@ export default function ManifestationBoardScreen() {
         }}
       />
 
-      <LinearGradient
-        colors={['#0c0520', '#1a0a3e', '#0d1b4a', '#0c0520']}
-        locations={[0, 0.3, 0.7, 1]}
+      <ImageBackground
+        source={{ uri: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/hmtn1lxo3phq29a4dqeyk' }}
         style={styles.background}
+        resizeMode="cover"
       >
-        <View style={styles.nebulaGlow1} />
-        <View style={styles.nebulaGlow2} />
-        <View style={styles.nebulaGlow3} />
+        <View style={styles.backgroundOverlay} />
         {renderStars()}
 
         <ScrollView
@@ -349,7 +348,7 @@ export default function ManifestationBoardScreen() {
             </LinearGradient>
           </TouchableOpacity>
         )}
-      </LinearGradient>
+      </ImageBackground>
     </View>
   );
 }
@@ -362,32 +361,9 @@ const styles = StyleSheet.create({
   background: {
     flex: 1,
   },
-  nebulaGlow1: {
-    position: 'absolute',
-    top: '10%',
-    left: '-20%',
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: 'rgba(124, 58, 237, 0.15)',
-  },
-  nebulaGlow2: {
-    position: 'absolute',
-    top: '40%',
-    right: '-15%',
-    width: 250,
-    height: 250,
-    borderRadius: 125,
-    backgroundColor: 'rgba(59, 130, 246, 0.12)',
-  },
-  nebulaGlow3: {
-    position: 'absolute',
-    bottom: '5%',
-    left: '20%',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+  backgroundOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(8, 3, 22, 0.55)',
   },
   star: {
     position: 'absolute',
