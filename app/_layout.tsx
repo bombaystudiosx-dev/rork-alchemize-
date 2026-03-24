@@ -1,11 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
-import React from "react";
-import { StyleSheet, Text, TouchableOpacity } from "react-native";
+import React, { useEffect } from "react";
+import { StyleSheet, Text, TouchableOpacity, Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ChevronLeft } from "lucide-react-native";
 import { ThemeProvider } from "@/contexts/theme-context";
 import { AuthProvider } from "@/contexts/auth-context";
+import { initDatabase } from "@/lib/database";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -79,6 +80,15 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  useEffect(() => {
+    if (Platform.OS !== 'web') {
+      console.log('[App] Initializing database...');
+      initDatabase()
+        .then(() => console.log('[App] Database ready'))
+        .catch((err) => console.error('[App] Database init failed:', err));
+    }
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>

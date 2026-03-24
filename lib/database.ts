@@ -36,6 +36,7 @@ import type {
 
 let db: SQLite.SQLiteDatabase | null = null;
 let currentUserId: string | null = null;
+let dbInitPromise: Promise<SQLite.SQLiteDatabase | null> | null = null;
 
 const webStore: Record<string, any[]> = {};
 
@@ -289,25 +290,33 @@ export function getCurrentUserId(): string | null {
   return currentUserId;
 }
 
-export async function initDatabase() {
+export async function initDatabase(): Promise<SQLite.SQLiteDatabase | null> {
   if (db) return db;
+  if (dbInitPromise) return dbInitPromise;
   
   if (Platform.OS === 'web') {
     console.log('[Database] Disabled on web - using memory-only mode');
     return null;
   }
   
-  try {
-    db = await SQLite.openDatabaseAsync('alchemize.db');
-  } catch (error) {
-    console.error('[Database] Failed to open database:', error);
-    throw error;
-  }
+  dbInitPromise = (async () => {
+    try {
+      db = await SQLite.openDatabaseAsync('alchemize.db');
+    } catch (error) {
+      console.error('[Database] Failed to open database:', error);
+      dbInitPromise = null;
+      throw error;
+    }
+    return db;
+  })();
+  await dbInitPromise;
+  if (!db) throw new Error('Database failed to open');
+  const initializedDb = db as SQLite.SQLiteDatabase;
   
   try {
-    await db.execAsync('PRAGMA journal_mode = WAL;');
+    await initializedDb.execAsync('PRAGMA journal_mode = WAL;');
     
-    await db.execAsync(`
+    await initializedDb.execAsync(`
       CREATE TABLE IF NOT EXISTS user_profile (
       id TEXT PRIMARY KEY,
       userId TEXT NOT NULL,
@@ -707,7 +716,7 @@ export async function initDatabase() {
     
     console.log('[Database] Tables created successfully');
     
-    await runMigrations(db);
+    if (db) await runMigrations(db);
   } catch (error) {
     console.error('[Database] Failed to create tables:', error);
     throw error;
@@ -889,8 +898,19 @@ export function getDatabase(): DatabaseAdapter {
     return webDb;
   }
   if (!db) {
-    console.warn('[Database] Database not initialized yet');
+    console.warn('[Database] Database not initialized yet - call initDatabase() first');
     throw new Error('Database not initialized');
+  }
+  return db as unknown as DatabaseAdapter;
+}
+
+export async function ensureDatabase(): Promise<DatabaseAdapter> {
+  if (Platform.OS === 'web') {
+    return webDb;
+  }
+  if (!db) {
+    console.log('[Database] Auto-initializing database...');
+    await initDatabase();
   }
   return db as unknown as DatabaseAdapter;
 }
@@ -985,7 +1005,7 @@ export const userProfileDb = {
 
 export const manifestationsDb = {
   async getAll(): Promise<Manifestation[]> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     const userId = getCurrentUserId() ?? 'guest';
     const rows = await database.getAllAsync<any>('SELECT * FROM manifestations WHERE userId = ? ORDER BY createdAt DESC', [userId]);
     return rows.map((row) => ({
@@ -997,7 +1017,7 @@ export const manifestationsDb = {
   },
   
   async getById(id: string): Promise<Manifestation | null> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     const userId = getCurrentUserId() ?? 'guest';
     const row = await database.getFirstAsync<any>('SELECT * FROM manifestations WHERE id = ? AND userId = ?', [id, userId]);
     if (!row) return null;
@@ -1010,7 +1030,8 @@ export const manifestationsDb = {
   },
   
   async create(manifestation: Manifestation): Promise<void> {
-    const database = getDatabase();
+    console.log('[manifestationsDb] create called, ensuring db...');
+    const database = await ensureDatabase();
     const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync(
       'INSERT INTO manifestations (id, userId, title, description, category, intention, images, isFavorite, orderIndex, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -1019,7 +1040,7 @@ export const manifestationsDb = {
   },
   
   async update(manifestation: Manifestation): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync(
       'UPDATE manifestations SET title = ?, description = ?, category = ?, intention = ?, images = ?, isFavorite = ?, orderIndex = ?, updatedAt = ? WHERE id = ? AND userId = ?',
@@ -1028,7 +1049,7 @@ export const manifestationsDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync('DELETE FROM manifestations WHERE id = ? AND userId = ?', [id, userId]);
   },
