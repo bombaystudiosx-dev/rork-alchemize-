@@ -11,7 +11,7 @@ import { OPTIMIZED_IMAGE_URLS } from '@/constants/image-config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '@/contexts/theme-context';
 import PWAInstallPrompt from './pwa-install-prompt';
-import { getDatabase } from '@/lib/database';
+import { ensureDatabase } from '@/lib/database';
 import { isSameLocalDay, localDateKey, startOfLocalDay } from '@/lib/date-utils';
 
 const FEATURES_VISIBILITY_KEY = '@alchemize_features_visibility';
@@ -369,11 +369,7 @@ export default function HomeScreen() {
     if (Platform.OS === 'web') return;
     
     try {
-      const db = getDatabase();
-      if (!db) {
-        console.log('[Calendar] Database not ready yet');
-        return;
-      }
+      const db = await ensureDatabase();
       
       const startDate = new Date(selectedWeekStart);
       startDate.setDate(startDate.getDate() - 30);

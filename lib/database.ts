@@ -921,7 +921,7 @@ export async function resetDatabase() {
     console.log('[Database] Web store reset');
     return;
   }
-  const database = getDatabase();
+  const database = await ensureDatabase();
   await database.execAsync(`
     DELETE FROM user_profile;
     DELETE FROM manifestations;
@@ -953,7 +953,7 @@ export async function resetDatabase() {
 
 export const userProfileDb = {
   async get(): Promise<UserProfile | null> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     const userId = getCurrentUserId() || 'default';
     let profile = await database.getFirstAsync<UserProfile>('SELECT * FROM user_profile WHERE userId = ? LIMIT 1', [userId]);
     
@@ -980,9 +980,8 @@ export const userProfileDb = {
   },
   
   async createOrUpdate(profile: UserProfile): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) throw new Error('User not authenticated');
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync(
       `INSERT OR REPLACE INTO user_profile (id, userId, fullName, email, totalXp, totalEnergy, currentStreak, createdAt) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -991,7 +990,7 @@ export const userProfileDb = {
   },
   
   async updateXpAndEnergy(xp: number, energy: number): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     const userId = getCurrentUserId() || 'default';
     
     await this.get();
@@ -1057,23 +1056,20 @@ export const manifestationsDb = {
 
 export const goalsDb = {
   async getAll(): Promise<Goal[]> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return [];
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     return database.getAllAsync<Goal>('SELECT * FROM goals WHERE userId = ? ORDER BY createdAt DESC', [userId]);
   },
   
   async getById(id: string): Promise<Goal | null> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return null;
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     return database.getFirstAsync<Goal>('SELECT * FROM goals WHERE id = ? AND userId = ?', [id, userId]);
   },
   
   async create(goal: Goal): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) throw new Error('User not authenticated');
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync(
       'INSERT INTO goals (id, userId, title, description, targetDate, status, progress, streak, bestStreak, lastCompletedDate, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [goal.id, userId, goal.title, goal.description, goal.targetDate, goal.status, goal.progress, goal.streak, goal.bestStreak, goal.lastCompletedDate, goal.createdAt, goal.updatedAt]
@@ -1081,9 +1077,8 @@ export const goalsDb = {
   },
   
   async update(goal: Goal): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return;
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync(
       'UPDATE goals SET title = ?, description = ?, targetDate = ?, status = ?, progress = ?, streak = ?, bestStreak = ?, lastCompletedDate = ?, updatedAt = ? WHERE id = ? AND userId = ?',
       [goal.title, goal.description, goal.targetDate, goal.status, goal.progress, goal.streak, goal.bestStreak, goal.lastCompletedDate, goal.updatedAt, goal.id, userId]
@@ -1091,21 +1086,20 @@ export const goalsDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return;
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync('DELETE FROM goals WHERE id = ? AND userId = ?', [id, userId]);
   },
 };
 
 export const goalChecklistDb = {
   async getByGoalId(goalId: string): Promise<GoalChecklistItem[]> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     return database.getAllAsync<GoalChecklistItem>('SELECT * FROM goal_checklist_items WHERE goalId = ?', [goalId]);
   },
   
   async create(item: GoalChecklistItem): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       'INSERT INTO goal_checklist_items (id, goalId, text, isDone) VALUES (?, ?, ?, ?)',
       [item.id, item.goalId, item.text, item.isDone ? 1 : 0]
@@ -1113,7 +1107,7 @@ export const goalChecklistDb = {
   },
   
   async update(item: GoalChecklistItem): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       'UPDATE goal_checklist_items SET text = ?, isDone = ? WHERE id = ?',
       [item.text, item.isDone ? 1 : 0, item.id]
@@ -1121,19 +1115,19 @@ export const goalChecklistDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync('DELETE FROM goal_checklist_items WHERE id = ?', [id]);
   },
 };
 
 export const goalCompletionsDb = {
   async getByGoalId(goalId: string): Promise<GoalCompletion[]> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     return database.getAllAsync<GoalCompletion>('SELECT * FROM goal_completions WHERE goalId = ? ORDER BY completionDate DESC', [goalId]);
   },
   
   async getByDateRange(goalId: string, startDate: number, endDate: number): Promise<GoalCompletion[]> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     return database.getAllAsync<GoalCompletion>(
       'SELECT * FROM goal_completions WHERE goalId = ? AND completionDate >= ? AND completionDate <= ? ORDER BY completionDate DESC',
       [goalId, startDate, endDate]
@@ -1141,7 +1135,7 @@ export const goalCompletionsDb = {
   },
   
   async create(completion: GoalCompletion): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       'INSERT INTO goal_completions (id, goalId, completionDate, notes, completedAt) VALUES (?, ?, ?, ?, ?)',
       [completion.id, completion.goalId, completion.completionDate, completion.notes, completion.completedAt]
@@ -1149,16 +1143,15 @@ export const goalCompletionsDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync('DELETE FROM goal_completions WHERE id = ?', [id]);
   },
 };
 
 export const habitsDb = {
   async getAll(): Promise<Habit[]> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return [];
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     const rows = await database.getAllAsync<any>('SELECT * FROM habits WHERE userId = ? ORDER BY createdAt DESC', [userId]);
     return rows.map(row => ({
       ...row,
@@ -1167,9 +1160,8 @@ export const habitsDb = {
   },
   
   async create(habit: Habit): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) throw new Error('User not authenticated');
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync(
       'INSERT INTO habits (id, userId, name, icon, goal, goalUnit, type, frequencyType, customDays, currentProgress, streak, xpReward, energyReward, color, lastCompletedDate, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [habit.id, userId, habit.name, habit.icon, habit.goal, habit.goalUnit || null, habit.type, habit.frequencyType, JSON.stringify(habit.customDays), habit.currentProgress, habit.streak, habit.xpReward, habit.energyReward, habit.color, habit.lastCompletedDate, habit.createdAt]
@@ -1177,9 +1169,8 @@ export const habitsDb = {
   },
   
   async update(habit: Habit): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return;
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync(
       'UPDATE habits SET name = ?, icon = ?, goal = ?, goalUnit = ?, type = ?, frequencyType = ?, customDays = ?, currentProgress = ?, streak = ?, xpReward = ?, energyReward = ?, color = ?, lastCompletedDate = ? WHERE id = ? AND userId = ?',
       [habit.name, habit.icon, habit.goal, habit.goalUnit || null, habit.type, habit.frequencyType, JSON.stringify(habit.customDays), habit.currentProgress, habit.streak, habit.xpReward, habit.energyReward, habit.color, habit.lastCompletedDate, habit.id, userId]
@@ -1187,26 +1178,25 @@ export const habitsDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return;
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync('DELETE FROM habits WHERE id = ? AND userId = ?', [id, userId]);
   },
 };
 
 export const habitCompletionsDb = {
   async getByHabitId(habitId: string): Promise<HabitCompletion[]> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     return database.getAllAsync<HabitCompletion>('SELECT * FROM habit_completions WHERE habitId = ? ORDER BY completedAt DESC', [habitId]);
   },
   
   async getAll(): Promise<HabitCompletion[]> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     return database.getAllAsync<HabitCompletion>('SELECT * FROM habit_completions ORDER BY completedAt DESC');
   },
   
   async create(completion: HabitCompletion): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       'INSERT INTO habit_completions (id, habitId, completionDate, value, notes, completedAt) VALUES (?, ?, ?, ?, ?, ?)',
       [completion.id, completion.habitId, completion.completionDate, completion.value, completion.notes, completion.completedAt]
@@ -1214,16 +1204,15 @@ export const habitCompletionsDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync('DELETE FROM habit_completions WHERE id = ?', [id]);
   },
 };
 
 export const transactionsDb = {
   async getAll(): Promise<Transaction[]> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return [];
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     const rows = await database.getAllAsync<any>('SELECT * FROM transactions WHERE userId = ? ORDER BY date DESC', [userId]);
     return rows.map(row => ({
       ...row,
@@ -1233,9 +1222,8 @@ export const transactionsDb = {
   },
   
   async create(transaction: Transaction): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) throw new Error('User not authenticated');
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync(
       'INSERT INTO transactions (id, userId, date, amount, category, note, dayOfWeek, time, reminderEnabled, reminderTime, isRecurring) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [transaction.id, userId, transaction.date, transaction.amount, transaction.category, transaction.note, transaction.dayOfWeek, transaction.time, transaction.reminderEnabled ? 1 : 0, transaction.reminderTime, transaction.isRecurring ? 1 : 0]
@@ -1243,9 +1231,8 @@ export const transactionsDb = {
   },
   
   async update(transaction: Transaction): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return;
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync(
       'UPDATE transactions SET date = ?, amount = ?, category = ?, note = ?, dayOfWeek = ?, time = ?, reminderEnabled = ?, reminderTime = ?, isRecurring = ? WHERE id = ? AND userId = ?',
       [transaction.date, transaction.amount, transaction.category, transaction.note, transaction.dayOfWeek, transaction.time, transaction.reminderEnabled ? 1 : 0, transaction.reminderTime, transaction.isRecurring ? 1 : 0, transaction.id, userId]
@@ -1253,25 +1240,22 @@ export const transactionsDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return;
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync('DELETE FROM transactions WHERE id = ? AND userId = ?', [id, userId]);
   },
 };
 
 export const financialIncomeDb = {
   async getAll(): Promise<FinancialIncome[]> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return [];
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     return database.getAllAsync<FinancialIncome>('SELECT * FROM financial_income WHERE userId = ? ORDER BY incomeDate DESC', [userId]);
   },
   
   async create(income: FinancialIncome): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) throw new Error('User not authenticated');
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync(
       'INSERT INTO financial_income (id, userId, incomeGross, incomeNet, taxAmount, taxPercentage, deductions, incomeCategory, incomeDate, notes, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [income.id, userId, income.incomeGross, income.incomeNet, income.taxAmount, income.taxPercentage, income.deductions, income.incomeCategory, income.incomeDate, income.notes, income.createdAt]
@@ -1279,25 +1263,22 @@ export const financialIncomeDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return;
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync('DELETE FROM financial_income WHERE id = ? AND userId = ?', [id, userId]);
   },
 };
 
 export const financialExpenseDb = {
   async getAll(): Promise<FinancialExpense[]> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return [];
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     return database.getAllAsync<FinancialExpense>('SELECT * FROM financial_expenses WHERE userId = ? ORDER BY expenseDate DESC', [userId]);
   },
   
   async create(expense: FinancialExpense): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) throw new Error('User not authenticated');
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync(
       'INSERT INTO financial_expenses (id, userId, expenseName, expenseAmount, expenseCategory, expenseDate, notes, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [expense.id, userId, expense.expenseName, expense.expenseAmount, expense.expenseCategory, expense.expenseDate, expense.notes, expense.createdAt]
@@ -1305,9 +1286,8 @@ export const financialExpenseDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return;
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync('DELETE FROM financial_expenses WHERE id = ? AND userId = ?', [id, userId]);
   },
 };
@@ -1316,26 +1296,23 @@ export const financialNoteDb = {
   async get(): Promise<FinancialNote | null> {
     if (Platform.OS === 'web') {
       const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
-      const userId = getCurrentUserId();
-      if (!userId) return null;
+      const userId = getCurrentUserId() ?? 'guest';
       const stored = await AsyncStorage.getItem(`financial_notes_${userId}`);
       return stored ? JSON.parse(stored) : null;
     }
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return null;
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     return database.getFirstAsync<FinancialNote>('SELECT * FROM financial_notes WHERE userId = ? LIMIT 1', [userId]);
   },
   
   async createOrUpdate(note: FinancialNote): Promise<void> {
-    const userId = getCurrentUserId();
-    if (!userId) throw new Error('User not authenticated');
+    const userId = getCurrentUserId() ?? 'guest';
     if (Platform.OS === 'web') {
       const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
       await AsyncStorage.setItem(`financial_notes_${userId}`, JSON.stringify(note));
       return;
     }
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       `INSERT OR REPLACE INTO financial_notes (id, userId, noteLoginInfo, noteTotalDebt, debtAmount, debtDueDate, savingsAmount, emergencyFund, savingsNotes, updatedAt) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -1346,12 +1323,12 @@ export const financialNoteDb = {
 
 export const mealsDb = {
   async getAll(): Promise<Meal[]> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     return database.getAllAsync<Meal>('SELECT * FROM meals ORDER BY date DESC');
   },
   
   async create(meal: Meal): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       'INSERT INTO meals (id, date, name, calories, protein, carbs, fat, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [meal.id, meal.date, meal.name, meal.calories, meal.protein, meal.carbs, meal.fat, meal.notes]
@@ -1359,16 +1336,15 @@ export const mealsDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync('DELETE FROM meals WHERE id = ?', [id]);
   },
 };
 
 export const foodLogsDb = {
   async getAll(): Promise<FoodLog[]> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return [];
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     const rows = await database.getAllAsync<any>('SELECT * FROM food_logs WHERE userId = ? ORDER BY loggedAt DESC', [userId]);
     return rows.map(row => ({
       ...row,
@@ -1377,9 +1353,8 @@ export const foodLogsDb = {
   },
   
   async getByDate(startOfDay: number, endOfDay: number): Promise<FoodLog[]> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return [];
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     const rows = await database.getAllAsync<any>(
       'SELECT * FROM food_logs WHERE userId = ? AND loggedAt >= ? AND loggedAt < ? ORDER BY loggedAt DESC',
       [userId, startOfDay, endOfDay]
@@ -1391,7 +1366,7 @@ export const foodLogsDb = {
   },
   
   async create(log: FoodLog): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       'INSERT INTO food_logs (id, userId, foodName, servingDescription, calories, proteinGrams, carbGrams, fatGrams, sugarGrams, fiberGrams, mealType, sourceType, loggedAt, isLocked, calendarEventId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [log.id, currentUserId || '', log.foodName, log.servingDescription, log.calories, log.proteinGrams, log.carbGrams, log.fatGrams, log.sugarGrams, log.fiberGrams, log.mealType, log.sourceType, log.loggedAt, log.isLocked ? 1 : 0, log.calendarEventId]
@@ -1399,14 +1374,14 @@ export const foodLogsDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync('DELETE FROM food_logs WHERE id = ?', [id]);
   },
 };
 
 export const savedFoodsDb = {
   async getAll(): Promise<SavedFood[]> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     const rows = await database.getAllAsync<any>('SELECT * FROM saved_foods ORDER BY foodName');
     return rows.map(row => ({
       ...row,
@@ -1415,7 +1390,7 @@ export const savedFoodsDb = {
   },
   
   async create(food: SavedFood): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       'INSERT INTO saved_foods (id, foodName, servingDescription, calories, proteinGrams, carbGrams, fatGrams, sugarGrams, fiberGrams, tags, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [food.id, food.foodName, food.servingDescription, food.calories, food.proteinGrams, food.carbGrams, food.fatGrams, food.sugarGrams, food.fiberGrams, JSON.stringify(food.tags), food.createdAt]
@@ -1423,19 +1398,19 @@ export const savedFoodsDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync('DELETE FROM saved_foods WHERE id = ?', [id]);
   },
 };
 
 export const nutritionGoalDb = {
   async get(): Promise<NutritionGoal | null> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     return database.getFirstAsync<NutritionGoal>('SELECT * FROM nutrition_goals LIMIT 1');
   },
   
   async createOrUpdate(goal: NutritionGoal): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       `INSERT OR REPLACE INTO nutrition_goals (id, dailyCalories, dailyProtein, dailyCarbs, dailyFat, dailySugar, dailyFiber, updatedAt) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -1446,12 +1421,12 @@ export const nutritionGoalDb = {
 
 export const plannedMealsDb = {
   async getAll(): Promise<PlannedMeal[]> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     return database.getAllAsync<PlannedMeal>('SELECT * FROM planned_meals ORDER BY date, slot');
   },
   
   async create(meal: PlannedMeal): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       'INSERT INTO planned_meals (id, date, slot, name, notes) VALUES (?, ?, ?, ?, ?)',
       [meal.id, meal.date, meal.slot, meal.name, meal.notes]
@@ -1459,16 +1434,15 @@ export const plannedMealsDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync('DELETE FROM planned_meals WHERE id = ?', [id]);
   },
 };
 
 export const tasksDb = {
   async getAll(): Promise<Task[]> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return [];
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     const rows = await database.getAllAsync<any>('SELECT * FROM tasks WHERE userId = ? ORDER BY orderIndex, createdAt DESC', [userId]);
     return rows.map(row => ({
       ...row,
@@ -1479,9 +1453,8 @@ export const tasksDb = {
   },
   
   async create(task: Task): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) throw new Error('User not authenticated');
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync(
       'INSERT INTO tasks (id, userId, title, notes, dueDate, dueTime, isDone, orderIndex, createdAt, updatedAt, completedDate, reminderEnabled, reminderTime, notificationId, priority) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [task.id, userId, task.title, task.notes, task.dueDate, task.dueTime, task.isDone ? 1 : 0, task.order, task.createdAt, task.updatedAt, task.completedDate, task.reminderEnabled ? 1 : 0, task.reminderTime, task.notificationId, task.priority]
@@ -1489,9 +1462,8 @@ export const tasksDb = {
   },
   
   async update(task: Task): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return;
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync(
       'UPDATE tasks SET title = ?, notes = ?, dueDate = ?, dueTime = ?, isDone = ?, orderIndex = ?, updatedAt = ?, completedDate = ?, reminderEnabled = ?, reminderTime = ?, notificationId = ?, priority = ? WHERE id = ? AND userId = ?',
       [task.title, task.notes, task.dueDate, task.dueTime, task.isDone ? 1 : 0, task.order, task.updatedAt, task.completedDate, task.reminderEnabled ? 1 : 0, task.reminderTime, task.notificationId, task.priority, task.id, userId]
@@ -1499,32 +1471,28 @@ export const tasksDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return;
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync('DELETE FROM tasks WHERE id = ? AND userId = ?', [id, userId]);
   },
 };
 
 export const gratitudeDb = {
   async getAll(): Promise<GratitudeEntry[]> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return [];
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     return database.getAllAsync<GratitudeEntry>('SELECT * FROM gratitude_entries WHERE userId = ? ORDER BY entryDate DESC', [userId]);
   },
   
   async getByDate(date: number): Promise<GratitudeEntry | null> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return null;
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     return database.getFirstAsync<GratitudeEntry>('SELECT * FROM gratitude_entries WHERE entryDate = ? AND userId = ?', [date, userId]);
   },
   
   async create(entry: GratitudeEntry): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) throw new Error('User not authenticated');
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync(
       'INSERT INTO gratitude_entries (id, userId, entryDate, gratitude1, gratitude2, gratitude3, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [entry.id, userId, entry.entryDate, entry.gratitude1, entry.gratitude2, entry.gratitude3, entry.createdAt]
@@ -1532,9 +1500,8 @@ export const gratitudeDb = {
   },
   
   async update(entry: GratitudeEntry): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return;
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync(
       'UPDATE gratitude_entries SET gratitude1 = ?, gratitude2 = ?, gratitude3 = ? WHERE id = ? AND userId = ?',
       [entry.gratitude1, entry.gratitude2, entry.gratitude3, entry.id, userId]
@@ -1542,9 +1509,8 @@ export const gratitudeDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return;
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync('DELETE FROM gratitude_entries WHERE id = ? AND userId = ?', [id, userId]);
   },
 };
@@ -1590,12 +1556,12 @@ export const affirmationsDb = {
 
 export const workoutsDb = {
   async getAll(): Promise<Workout[]> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     return database.getAllAsync<Workout>('SELECT * FROM workouts ORDER BY date DESC');
   },
   
   async create(workout: Workout): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       'INSERT INTO workouts (id, type, durationMinutes, caloriesBurned, notes, date, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [workout.id, workout.type, workout.durationMinutes, workout.caloriesBurned, workout.notes, workout.date, workout.createdAt]
@@ -1603,19 +1569,19 @@ export const workoutsDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync('DELETE FROM workouts WHERE id = ?', [id]);
   },
 };
 
 export const bodyMetricsDb = {
   async getAll(): Promise<BodyMetric[]> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     return database.getAllAsync<BodyMetric>('SELECT * FROM body_metrics ORDER BY date DESC');
   },
   
   async create(metric: BodyMetric): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       'INSERT INTO body_metrics (id, date, weight, waist, chest, hips, arms, thighs, bodyFatPercentage, muscleMass, notes, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [metric.id, metric.date, metric.weight, metric.waist, metric.chest, metric.hips, metric.arms, metric.thighs, metric.bodyFatPercentage, metric.muscleMass, metric.notes, metric.createdAt]
@@ -1623,16 +1589,15 @@ export const bodyMetricsDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync('DELETE FROM body_metrics WHERE id = ?', [id]);
   },
 };
 
 export const appointmentsDb = {
   async getAll(): Promise<Appointment[]> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return [];
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     const rows = await database.getAllAsync<any>('SELECT * FROM appointments WHERE userId = ? ORDER BY date, time', [userId]);
     return rows.map(row => ({
       ...row,
@@ -1641,9 +1606,8 @@ export const appointmentsDb = {
   },
   
   async create(appointment: Appointment): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) throw new Error('User not authenticated');
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync(
       'INSERT INTO appointments (id, userId, title, date, time, category, notes, reminder, createdAt, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [appointment.id, userId, appointment.title, appointment.date, appointment.time, appointment.category, appointment.notes, appointment.reminder ? 1 : 0, appointment.createdAt, appointment.metadata || null]
@@ -1651,9 +1615,8 @@ export const appointmentsDb = {
   },
   
   async update(appointment: Appointment): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return;
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync(
       'UPDATE appointments SET title = ?, date = ?, time = ?, category = ?, notes = ?, reminder = ?, metadata = ? WHERE id = ? AND userId = ?',
       [appointment.title, appointment.date, appointment.time, appointment.category, appointment.notes, appointment.reminder ? 1 : 0, appointment.metadata || null, appointment.id, userId]
@@ -1661,16 +1624,15 @@ export const appointmentsDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return;
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync('DELETE FROM appointments WHERE id = ? AND userId = ?', [id, userId]);
   },
 };
 
 export const userNutritionProfileDb = {
   async get(): Promise<UserNutritionProfile | null> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     const row = await database.getFirstAsync<any>('SELECT * FROM user_nutrition_profiles LIMIT 1');
     if (!row) return null;
     return {
@@ -1681,7 +1643,7 @@ export const userNutritionProfileDb = {
   },
   
   async createOrUpdate(profile: UserNutritionProfile): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       `INSERT OR REPLACE INTO user_nutrition_profiles (id, userId, height, heightUnit, weight, weightUnit, targetWeight, age, gender, activityLevel, goal, weeklyGoal, dailyCalorieTarget, dailyProteinTarget, dailyCarbsTarget, dailyFatTarget, dailyWaterTarget, dailyFiberTarget, manualMacros, updatedAt) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -1692,12 +1654,12 @@ export const userNutritionProfileDb = {
 
 export const waterLogsDb = {
   async getAll(): Promise<WaterLog[]> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     return database.getAllAsync<WaterLog>('SELECT * FROM water_logs ORDER BY loggedAt DESC');
   },
   
   async getByDate(startOfDay: number, endOfDay: number): Promise<WaterLog[]> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     return database.getAllAsync<WaterLog>(
       'SELECT * FROM water_logs WHERE loggedAt >= ? AND loggedAt < ? ORDER BY loggedAt DESC',
       [startOfDay, endOfDay]
@@ -1705,7 +1667,7 @@ export const waterLogsDb = {
   },
   
   async create(log: WaterLog): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       'INSERT INTO water_logs (id, amount, unit, loggedAt) VALUES (?, ?, ?, ?)',
       [log.id, log.amount, log.unit, log.loggedAt]
@@ -1713,14 +1675,14 @@ export const waterLogsDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync('DELETE FROM water_logs WHERE id = ?', [id]);
   },
 };
 
 export const mealPrepPlansDb = {
   async getAll(): Promise<MealPrepPlan[]> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     const rows = await database.getAllAsync<any>('SELECT * FROM meal_prep_plans ORDER BY weekStartDate, dayOfWeek, mealType');
     return rows.map(row => ({
       ...row,
@@ -1729,7 +1691,7 @@ export const mealPrepPlansDb = {
   },
   
   async getByWeek(weekStartDate: number): Promise<MealPrepPlan[]> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     const rows = await database.getAllAsync<any>(
       'SELECT * FROM meal_prep_plans WHERE weekStartDate = ? ORDER BY dayOfWeek, mealType',
       [weekStartDate]
@@ -1741,7 +1703,7 @@ export const mealPrepPlansDb = {
   },
   
   async create(plan: MealPrepPlan): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       'INSERT INTO meal_prep_plans (id, weekStartDate, dayOfWeek, mealType, foodName, calories, protein, carbs, fat, servingSize, notes, isCompleted, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [plan.id, plan.weekStartDate, plan.dayOfWeek, plan.mealType, plan.foodName, plan.calories, plan.protein, plan.carbs, plan.fat, plan.servingSize, plan.notes, plan.isCompleted ? 1 : 0, plan.createdAt]
@@ -1749,7 +1711,7 @@ export const mealPrepPlansDb = {
   },
   
   async update(plan: MealPrepPlan): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       'UPDATE meal_prep_plans SET foodName = ?, calories = ?, protein = ?, carbs = ?, fat = ?, servingSize = ?, notes = ?, isCompleted = ? WHERE id = ?',
       [plan.foodName, plan.calories, plan.protein, plan.carbs, plan.fat, plan.servingSize, plan.notes, plan.isCompleted ? 1 : 0, plan.id]
@@ -1757,24 +1719,24 @@ export const mealPrepPlansDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync('DELETE FROM meal_prep_plans WHERE id = ?', [id]);
   },
   
   async deleteByWeek(weekStartDate: number): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync('DELETE FROM meal_prep_plans WHERE weekStartDate = ?', [weekStartDate]);
   },
 };
 
 export const fitnessGoalsDb = {
   async getAll(): Promise<FitnessGoal[]> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     return database.getAllAsync<FitnessGoal>('SELECT * FROM fitness_goals ORDER BY createdAt DESC');
   },
   
   async create(goal: FitnessGoal): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       'INSERT INTO fitness_goals (id, metric, dailyTarget, createdAt) VALUES (?, ?, ?, ?)',
       [goal.id, goal.metric, goal.dailyTarget, goal.createdAt]
@@ -1782,7 +1744,7 @@ export const fitnessGoalsDb = {
   },
   
   async update(goal: FitnessGoal): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       'UPDATE fitness_goals SET metric = ?, dailyTarget = ? WHERE id = ?',
       [goal.metric, goal.dailyTarget, goal.id]
@@ -1790,24 +1752,24 @@ export const fitnessGoalsDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync('DELETE FROM fitness_goals WHERE id = ?', [id]);
   },
 };
 
 export const workoutTemplatesDb = {
   async getAll(): Promise<WorkoutTemplate[]> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     return database.getAllAsync<WorkoutTemplate>('SELECT * FROM workout_templates');
   },
   
   async getById(id: string): Promise<WorkoutTemplate | null> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     return database.getFirstAsync<WorkoutTemplate>('SELECT * FROM workout_templates WHERE id = ?', [id]);
   },
   
   async create(template: WorkoutTemplate): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       'INSERT INTO workout_templates (id, title, category, durationMinutes, intensity, equipment, description) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [template.id, template.title, template.category, template.durationMinutes, template.intensity, template.equipment, template.description]
@@ -1815,14 +1777,14 @@ export const workoutTemplatesDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync('DELETE FROM workout_templates WHERE id = ?', [id]);
   },
 };
 
 export const workoutSessionsDb = {
   async getAll(): Promise<WorkoutSession[]> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     const rows = await database.getAllAsync<any>('SELECT * FROM workout_sessions ORDER BY startedAt DESC');
     return rows.map(row => ({
       ...row,
@@ -1831,7 +1793,7 @@ export const workoutSessionsDb = {
   },
   
   async getById(id: string): Promise<WorkoutSession | null> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     const row = await database.getFirstAsync<any>('SELECT * FROM workout_sessions WHERE id = ?', [id]);
     if (!row) return null;
     return {
@@ -1841,7 +1803,7 @@ export const workoutSessionsDb = {
   },
   
   async create(session: WorkoutSession): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       'INSERT INTO workout_sessions (id, templateId, startedAt, endedAt, durationMinutes, completed, caloriesEstimate, source) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [session.id, session.templateId, session.startedAt, session.endedAt, session.durationMinutes, session.completed ? 1 : 0, session.caloriesEstimate, session.source]
@@ -1849,7 +1811,7 @@ export const workoutSessionsDb = {
   },
   
   async update(session: WorkoutSession): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       'UPDATE workout_sessions SET endedAt = ?, durationMinutes = ?, completed = ?, caloriesEstimate = ? WHERE id = ?',
       [session.endedAt, session.durationMinutes, session.completed ? 1 : 0, session.caloriesEstimate, session.id]
@@ -1857,24 +1819,24 @@ export const workoutSessionsDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync('DELETE FROM workout_sessions WHERE id = ?', [id]);
   },
 };
 
 export const normalizedMetricsDb = {
   async getAll(): Promise<NormalizedMetric[]> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     return database.getAllAsync<NormalizedMetric>('SELECT * FROM normalized_metrics ORDER BY date DESC');
   },
   
   async getByDate(date: string): Promise<NormalizedMetric | null> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     return database.getFirstAsync<NormalizedMetric>('SELECT * FROM normalized_metrics WHERE date = ?', [date]);
   },
   
   async create(metric: NormalizedMetric): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       'INSERT INTO normalized_metrics (id, date, activeMinutes, caloriesActive, steps, source, deviceType) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [metric.id, metric.date, metric.activeMinutes, metric.caloriesActive, metric.steps, metric.source, metric.deviceType]
@@ -1882,7 +1844,7 @@ export const normalizedMetricsDb = {
   },
   
   async update(metric: NormalizedMetric): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       'UPDATE normalized_metrics SET activeMinutes = ?, caloriesActive = ?, steps = ? WHERE date = ?',
       [metric.activeMinutes, metric.caloriesActive, metric.steps, metric.date]
@@ -1890,7 +1852,7 @@ export const normalizedMetricsDb = {
   },
   
   async upsert(metric: NormalizedMetric): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     const existing = await this.getByDate(metric.date);
     if (existing) {
       await database.runAsync(
@@ -1905,7 +1867,7 @@ export const normalizedMetricsDb = {
 
 export const fitnessPlansDb = {
   async getAll(): Promise<FitnessPlan[]> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     const rows = await database.getAllAsync<any>('SELECT * FROM fitness_plans ORDER BY createdAt DESC');
     return rows.map(row => ({
       ...row,
@@ -1915,7 +1877,7 @@ export const fitnessPlansDb = {
   },
   
   async getActive(): Promise<FitnessPlan | null> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     const row = await database.getFirstAsync<any>('SELECT * FROM fitness_plans WHERE active = 1 LIMIT 1');
     if (!row) return null;
     return {
@@ -1926,7 +1888,7 @@ export const fitnessPlansDb = {
   },
   
   async create(plan: FitnessPlan): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     if (plan.active) {
       await database.runAsync('UPDATE fitness_plans SET active = 0');
     }
@@ -1937,7 +1899,7 @@ export const fitnessPlansDb = {
   },
   
   async update(plan: FitnessPlan): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     if (plan.active) {
       await database.runAsync('UPDATE fitness_plans SET active = 0 WHERE id != ?', [plan.id]);
     }
@@ -1948,24 +1910,24 @@ export const fitnessPlansDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync('DELETE FROM fitness_plans WHERE id = ?', [id]);
   },
 };
 
 export const awardsDb = {
   async getAll(): Promise<Award[]> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     return database.getAllAsync<Award>('SELECT * FROM awards ORDER BY earnedAt DESC');
   },
   
   async getEarned(): Promise<Award[]> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     return database.getAllAsync<Award>('SELECT * FROM awards WHERE earnedAt IS NOT NULL ORDER BY earnedAt DESC');
   },
   
   async create(award: Award): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       'INSERT OR IGNORE INTO awards (id, code, title, description, earnedAt) VALUES (?, ?, ?, ?, ?)',
       [award.id, award.code, award.title, award.description, award.earnedAt]
@@ -1973,7 +1935,7 @@ export const awardsDb = {
   },
   
   async markEarned(code: string): Promise<void> {
-    const database = getDatabase();
+    const database = await ensureDatabase();
     await database.runAsync(
       'UPDATE awards SET earnedAt = ? WHERE code = ? AND earnedAt IS NULL',
       [Date.now(), code]
