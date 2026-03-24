@@ -1551,9 +1551,9 @@ export const gratitudeDb = {
 
 export const affirmationsDb = {
   async getAll(): Promise<Affirmation[]> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return [];
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
+    console.log('[affirmationsDb] getAll userId:', userId);
     const rows = await database.getAllAsync<any>('SELECT * FROM affirmations WHERE userId = ? ORDER BY createdAt DESC', [userId]);
     return rows.map(row => ({
       ...row,
@@ -1562,19 +1562,19 @@ export const affirmationsDb = {
   },
   
   async create(affirmation: Affirmation): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) throw new Error('User not authenticated');
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
+    console.log('[affirmationsDb] create userId:', userId, 'affirmation:', affirmation.id);
     await database.runAsync(
       'INSERT INTO affirmations (id, userId, text, category, isFavorite, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
       [affirmation.id, userId, affirmation.text, affirmation.category, affirmation.isFavorite ? 1 : 0, affirmation.createdAt]
     );
+    console.log('[affirmationsDb] create success');
   },
   
   async update(affirmation: Affirmation): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return;
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync(
       'UPDATE affirmations SET text = ?, category = ?, isFavorite = ? WHERE id = ? AND userId = ?',
       [affirmation.text, affirmation.category, affirmation.isFavorite ? 1 : 0, affirmation.id, userId]
@@ -1582,9 +1582,8 @@ export const affirmationsDb = {
   },
   
   async delete(id: string): Promise<void> {
-    const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return;
+    const database = await ensureDatabase();
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync('DELETE FROM affirmations WHERE id = ? AND userId = ?', [id, userId]);
   },
 };

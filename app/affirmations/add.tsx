@@ -15,8 +15,13 @@ export default function AddAffirmationScreen() {
   const createMutation = useMutation({
     mutationFn: (affirmation: Affirmation) => affirmationsDb.create(affirmation),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['affirmations'] });
+      console.log('[AddAffirmation] Created successfully');
+      void queryClient.invalidateQueries({ queryKey: ['affirmations'] });
       router.back();
+    },
+    onError: (error: any) => {
+      console.error('[AddAffirmation] Create failed:', error);
+      Alert.alert('Error', error?.message || 'Failed to save affirmation. Please try again.');
     },
   });
 
