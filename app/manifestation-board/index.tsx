@@ -206,7 +206,12 @@ export default function ManifestationBoardScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          headerShown: false,
+          headerShown: true,
+          title: 'Portal Board',
+          headerStyle: { backgroundColor: '#0c0520' },
+          headerTintColor: '#ffffff',
+          headerShadowVisible: false,
+          headerTitleStyle: { color: '#ffffff' },
         }}
       />
 
@@ -393,7 +398,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: 60,
+    paddingTop: 20,
     paddingBottom: 100,
     paddingHorizontal: 16,
   },

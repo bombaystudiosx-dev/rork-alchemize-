@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { Platform } from 'react-native';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 
@@ -35,7 +34,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const [rememberMe, setRememberMeState] = useState(false);
 
   useEffect(() => {
-    loadAuthState();
+    void loadAuthState();
   }, []);
 
   const loadAuthState = async () => {
@@ -51,10 +50,9 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           const auth = JSON.parse(storedAuth) as AuthState;
           if (auth && typeof auth === 'object' && auth.user && typeof auth.user === 'object') {
             setAuthState(auth);
-            if (Platform.OS !== 'web') {
-              setCurrentUserId(auth.user.id);
-            }
+            setCurrentUserId(auth.user.id);
             console.log('[Auth] Auth state loaded successfully:', auth.user?.email);
+            console.log('[Auth] Current user ID restored:', auth.user.id);
           } else {
             console.warn('[Auth] Invalid auth structure, clearing');
             await AsyncStorage.removeItem(AUTH_STORAGE_KEY).catch(() => {});
@@ -80,7 +78,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   };
 
-  const login = async (email: string, password: string, remember: boolean) => {
+  const login = useCallback(async (email: string, password: string, remember: boolean) => {
     try {
       console.log('[Auth] Logging in:', email);
       
@@ -110,9 +108,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       setAuthState(newAuthState);
       setRememberMeState(remember);
       
-      if (Platform.OS !== 'web') {
-        setCurrentUserId(user.id);
-      }
+      setCurrentUserId(user.id);
+      console.log('[Auth] Current user ID set after login:', user.id);
 
       await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newAuthState));
       await AsyncStorage.setItem(REMEMBER_ME_KEY, remember.toString());
@@ -123,9 +120,9 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       console.error('[Auth] Login error:', error);
       return { success: false, error: error.message || 'Login failed' };
     }
-  };
+  }, []);
 
-  const signup = async (email: string, password: string, name: string) => {
+  const signup = useCallback(async (email: string, password: string, name: string) => {
     try {
       console.log('[Auth] Signing up:', email);
 
@@ -160,9 +157,8 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       
       setAuthState(newAuthState);
       
-      if (Platform.OS !== 'web') {
-        setCurrentUserId(userId);
-      }
+      setCurrentUserId(userId);
+      console.log('[Auth] Current user ID set after signup:', userId);
 
       await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newAuthState));
 
@@ -172,16 +168,15 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       console.error('[Auth] Signup error:', error);
       return { success: false, error: error.message || 'Signup failed' };
     }
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       console.log('[Auth] Logging out');
       setAuthState({ user: null, token: null });
       
-      if (Platform.OS !== 'web') {
-        setCurrentUserId(null);
-      }
+      setCurrentUserId(null);
+      console.log('[Auth] Current user ID cleared');
       
       await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
       await AsyncStorage.removeItem(REMEMBER_ME_KEY);
@@ -190,9 +185,9 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     } catch (error) {
       console.error('[Auth] Logout error:', error);
     }
-  };
+  }, []);
 
-  return {
+  return useMemo(() => ({
     user: authState.user,
     token: authState.token,
     isAuthenticated: !!authState.user,
@@ -201,5 +196,5 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     login,
     signup,
     logout,
-  };
+  }), [authState.user, authState.token, rememberMe, login, signup, logout]);
 });

@@ -194,7 +194,7 @@ function UnifiedCalendar({ events, selectedWeekStart, onWeekChange, onDayPress, 
     return '#6366f1';
   };
   
-  const calStyle = isDark ? calendarStyles.dark : calendarStyles.light;
+  const calStyle = isDark ? calendarThemeStyles.dark : calendarThemeStyles.light;
   
   const allWeekEvents = weekDays.flatMap((day) => {
     const dateStr = localDateKey(day);
@@ -495,20 +495,20 @@ export default function HomeScreen() {
   };
 
   useEffect(() => {
-    loadFeatureVisibility();
-    loadCalendarVisibility();
-    loadCalendarEvents();
+    void loadFeatureVisibility();
+    void loadCalendarVisibility();
+    void loadCalendarEvents();
   }, [loadCalendarEvents]);
   
   useEffect(() => {
-    loadCalendarEvents();
+    void loadCalendarEvents();
   }, [loadCalendarEvents, selectedWeekStart]);
 
   useFocusEffect(
     React.useCallback(() => {
-      loadFeatureVisibility();
-      loadCalendarVisibility();
-      loadCalendarEvents();
+      void loadFeatureVisibility();
+      void loadCalendarVisibility();
+      void loadCalendarEvents();
     }, [loadCalendarEvents])
   );
 
@@ -775,6 +775,61 @@ export default function HomeScreen() {
   );
 }
 
+const calendarThemeStyles = {
+  light: {
+    monthText: {
+      color: '#fff',
+    },
+    dayName: {
+      color: 'rgba(255, 255, 255, 0.8)',
+    },
+    dayText: {
+      color: '#fff',
+    },
+    expandedTitle: {
+      color: '#fff',
+    },
+    expandedEmptyText: {
+      color: 'rgba(255,255,255,0.5)',
+    },
+    expandedEventTitle: {
+      color: '#fff',
+    },
+    expandedEventDate: {
+      color: 'rgba(255,255,255,0.6)',
+    },
+    expandedEventCount: {
+      color: 'rgba(255,255,255,0.5)',
+    },
+  },
+  dark: {
+    monthText: {
+      color: '#fff',
+    },
+    dayName: {
+      color: 'rgba(255, 255, 255, 0.7)',
+    },
+    dayText: {
+      color: '#fff',
+    },
+    expandedTitle: {
+      color: '#fff',
+    },
+    expandedEmptyText: {
+      color: 'rgba(255,255,255,0.5)',
+    },
+    expandedEventTitle: {
+      color: '#fff',
+    },
+    expandedEventDate: {
+      color: 'rgba(255,255,255,0.6)',
+    },
+    expandedEventCount: {
+      color: 'rgba(255,255,255,0.5)',
+    },
+  },
+} as const;
+
 const calendarStyles = StyleSheet.create({
   container: {
     width: '100%',
@@ -858,43 +913,6 @@ const calendarStyles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-  },
-  light: {
-    monthText: {
-      color: '#fff',
-    },
-    dayName: {
-      color: 'rgba(255, 255, 255, 0.8)',
-    },
-    dayText: {
-      color: '#fff',
-    },
-  },
-  dark: {
-    monthText: {
-      color: '#fff',
-    },
-    dayName: {
-      color: 'rgba(255, 255, 255, 0.7)',
-    },
-    dayText: {
-      color: '#fff',
-    },
-    expandedTitle: {
-      color: '#fff',
-    },
-    expandedEmptyText: {
-      color: 'rgba(255,255,255,0.5)',
-    },
-    expandedEventTitle: {
-      color: '#fff',
-    },
-    expandedEventDate: {
-      color: 'rgba(255,255,255,0.6)',
-    },
-    expandedEventCount: {
-      color: 'rgba(255,255,255,0.5)',
-    },
   },
   expandedSection: {
     marginTop: 16,

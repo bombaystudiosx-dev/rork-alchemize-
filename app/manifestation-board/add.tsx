@@ -142,8 +142,13 @@ export default function AddManifestationScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          headerShown: false,
+          headerShown: true,
           presentation: 'modal',
+          title: 'Add Manifestation',
+          headerStyle: { backgroundColor: '#0c0520' },
+          headerTintColor: '#ffffff',
+          headerShadowVisible: false,
+          headerTitleStyle: { color: '#ffffff' },
         }}
       />
 
@@ -284,7 +289,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 56,
+    paddingTop: 20,
     paddingBottom: 40,
   },
   header: {
