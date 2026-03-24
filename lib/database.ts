@@ -986,35 +986,32 @@ export const userProfileDb = {
 export const manifestationsDb = {
   async getAll(): Promise<Manifestation[]> {
     const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return [];
+    const userId = getCurrentUserId() ?? 'guest';
     const rows = await database.getAllAsync<any>('SELECT * FROM manifestations WHERE userId = ? ORDER BY createdAt DESC', [userId]);
-    return rows.map(row => ({
+    return rows.map((row) => ({
       ...row,
-      images: JSON.parse(row.images),
+      images: typeof row.images === 'string' ? JSON.parse(row.images) : Array.isArray(row.images) ? row.images : [],
       isFavorite: Boolean(row.isFavorite),
-      order: row.orderIndex,
+      order: row.orderIndex ?? row.order ?? 0,
     }));
   },
   
   async getById(id: string): Promise<Manifestation | null> {
     const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return null;
+    const userId = getCurrentUserId() ?? 'guest';
     const row = await database.getFirstAsync<any>('SELECT * FROM manifestations WHERE id = ? AND userId = ?', [id, userId]);
     if (!row) return null;
     return {
       ...row,
-      images: JSON.parse(row.images),
+      images: typeof row.images === 'string' ? JSON.parse(row.images) : Array.isArray(row.images) ? row.images : [],
       isFavorite: Boolean(row.isFavorite),
-      order: row.orderIndex,
+      order: row.orderIndex ?? row.order ?? 0,
     };
   },
   
   async create(manifestation: Manifestation): Promise<void> {
     const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) throw new Error('User not authenticated');
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync(
       'INSERT INTO manifestations (id, userId, title, description, category, intention, images, isFavorite, orderIndex, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [manifestation.id, userId, manifestation.title, manifestation.description, manifestation.category, manifestation.intention, JSON.stringify(manifestation.images), manifestation.isFavorite ? 1 : 0, manifestation.order, manifestation.createdAt, manifestation.updatedAt]
@@ -1023,8 +1020,7 @@ export const manifestationsDb = {
   
   async update(manifestation: Manifestation): Promise<void> {
     const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return;
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync(
       'UPDATE manifestations SET title = ?, description = ?, category = ?, intention = ?, images = ?, isFavorite = ?, orderIndex = ?, updatedAt = ? WHERE id = ? AND userId = ?',
       [manifestation.title, manifestation.description, manifestation.category, manifestation.intention, JSON.stringify(manifestation.images), manifestation.isFavorite ? 1 : 0, manifestation.order, manifestation.updatedAt, manifestation.id, userId]
@@ -1033,8 +1029,7 @@ export const manifestationsDb = {
   
   async delete(id: string): Promise<void> {
     const database = getDatabase();
-    const userId = getCurrentUserId();
-    if (!userId) return;
+    const userId = getCurrentUserId() ?? 'guest';
     await database.runAsync('DELETE FROM manifestations WHERE id = ? AND userId = ?', [id, userId]);
   },
 };

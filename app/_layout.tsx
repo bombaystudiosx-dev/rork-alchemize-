@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import React from "react";
-import { StyleSheet } from "react-native";
+import { StyleSheet, Text, TouchableOpacity } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { ChevronLeft } from "lucide-react-native";
 import { ThemeProvider } from "@/contexts/theme-context";
 import { AuthProvider } from "@/contexts/auth-context";
 
@@ -18,13 +19,26 @@ const queryClient = new QueryClient({
 function RootLayoutNav() {
   return (
     <Stack
-      screenOptions={{
+      screenOptions={({ navigation }) => ({
         headerBackTitle: "Back",
         headerTintColor: "#ffffff",
         headerStyle: { backgroundColor: '#0c0520' },
         headerShadowVisible: false,
         headerTitleStyle: { color: '#ffffff' },
-      }}
+        headerLeft: navigation.canGoBack()
+          ? ({ tintColor }) => (
+              <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                style={layoutStyles.backButton}
+                activeOpacity={0.7}
+                testID="global-back-button"
+              >
+                <ChevronLeft color={tintColor ?? '#ffffff'} size={18} strokeWidth={2.5} />
+                <Text style={layoutStyles.backButtonText}>Back</Text>
+              </TouchableOpacity>
+            )
+          : undefined,
+      })}
     >
       <Stack.Screen name="auth" options={{ title: "Welcome", headerShown: false }} />
       <Stack.Screen name="index" options={{ title: "Alchemize", headerShown: false }} />
@@ -81,5 +95,17 @@ export default function RootLayout() {
 const layoutStyles = StyleSheet.create({
   root: {
     flex: 1,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    paddingRight: 8,
+  },
+  backButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '600' as const,
   },
 });
