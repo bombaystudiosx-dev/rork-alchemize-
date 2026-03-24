@@ -37,6 +37,249 @@ import type {
 let db: SQLite.SQLiteDatabase | null = null;
 let currentUserId: string | null = null;
 
+const webStore: Record<string, any[]> = {};
+
+function getWebTable(name: string): any[] {
+  if (!webStore[name]) {
+    webStore[name] = [];
+  }
+  return webStore[name];
+}
+
+interface DatabaseAdapter {
+  getAllAsync<T>(sql: string, params?: any[]): Promise<T[]>;
+  getFirstAsync<T>(sql: string, params?: any[]): Promise<T | null>;
+  runAsync(sql: string, params?: any[]): Promise<any>;
+  execAsync(sql: string): Promise<void>;
+}
+
+const webDb: DatabaseAdapter & { _handleInsert: any; _handleUpdate: any; _handleDelete: any } = {
+  async getAllAsync<T>(sql: string, params?: any[]): Promise<T[]> {
+    const tableName = extractTableName(sql);
+    const table = getWebTable(tableName);
+    const whereFilters = extractWhereFilters(sql, params || []);
+    let results = table.filter((row: any) => {
+      return whereFilters.every(f => {
+        if (f.op === '=') return row[f.col] === f.val;
+        if (f.op === '>=') return row[f.col] >= f.val;
+        if (f.op === '<=') return row[f.col] <= f.val;
+        if (f.op === '<') return row[f.col] < f.val;
+        if (f.op === '>') return row[f.col] > f.val;
+        if (f.op === 'IS NOT NULL') return row[f.col] != null;
+        if (f.op === 'IS NULL') return row[f.col] == null;
+        if (f.op === '!=') return row[f.col] !== f.val;
+        return true;
+      });
+    });
+    const orderBy = extractOrderBy(sql);
+    if (orderBy.length > 0) {
+      results.sort((a: any, b: any) => {
+        for (const o of orderBy) {
+          const av = a[o.col] ?? '';
+          const bv = b[o.col] ?? '';
+          if (av < bv) return o.dir === 'ASC' ? -1 : 1;
+          if (av > bv) return o.dir === 'ASC' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return results as T[];
+  },
+  async getFirstAsync<T>(sql: string, params?: any[]): Promise<T | null> {
+    const results: T[] = await this.getAllAsync(sql, params);
+    return results[0] ?? null;
+  },
+  async runAsync(sql: string, params?: any[]): Promise<any> {
+    const sqlUpper = sql.trim().toUpperCase();
+    if (sqlUpper.startsWith('INSERT')) {
+      return this._handleInsert(sql, params || []);
+    } else if (sqlUpper.startsWith('UPDATE')) {
+      return this._handleUpdate(sql, params || []);
+    } else if (sqlUpper.startsWith('DELETE')) {
+      return this._handleDelete(sql, params || []);
+    }
+    return { changes: 0 };
+  },
+  async execAsync(_sql: string): Promise<void> {
+    const statements = _sql.split(';').map(s => s.trim()).filter(Boolean);
+    for (const stmt of statements) {
+      const upper = stmt.toUpperCase();
+      if (upper.startsWith('DELETE FROM')) {
+        const match = stmt.match(/DELETE\s+FROM\s+(\w+)/i);
+        if (match) {
+          webStore[match[1]] = [];
+        }
+      }
+    }
+  },
+  _handleInsert(sql: string, params: any[]) {
+    const match = sql.match(/INSERT\s+(?:OR\s+(?:REPLACE|IGNORE)\s+)?INTO\s+(\w+)\s*\(([^)]+)\)/i);
+    if (!match) return { changes: 0 };
+    const tableName = match[1];
+    const columns = match[2].split(',').map(c => c.trim());
+    const table = getWebTable(tableName);
+    const row: any = {};
+    columns.forEach((col, i) => {
+      row[col] = params[i] !== undefined ? params[i] : null;
+    });
+    const isReplace = /OR\s+REPLACE/i.test(sql);
+    const isIgnore = /OR\s+IGNORE/i.test(sql);
+    const idCol = columns.includes('id') ? 'id' : null;
+    if (idCol) {
+      const existingIdx = table.findIndex((r: any) => r.id === row.id);
+      if (existingIdx >= 0) {
+        if (isReplace) {
+          table[existingIdx] = row;
+          return { changes: 1 };
+        } else if (isIgnore) {
+          return { changes: 0 };
+        }
+      }
+    }
+    table.push(row);
+    return { changes: 1 };
+  },
+  _handleUpdate(sql: string, params: any[]) {
+    const tableName = extractTableName(sql);
+    const table = getWebTable(tableName);
+    const setMatch = sql.match(/SET\s+(.+?)\s+WHERE/i);
+    if (!setMatch) {
+      const setMatchNoWhere = sql.match(/SET\s+(.+)$/i);
+      if (setMatchNoWhere) {
+        const setClauses = parseSetClauses(setMatchNoWhere[1]);
+        let paramIdx = 0;
+        for (const row of table) {
+          let localIdx = paramIdx;
+          for (const clause of setClauses) {
+            if (clause.expr === '?') {
+              row[clause.col] = params[localIdx++];
+            } else if (clause.expr.includes('+')) {
+              const addMatch = clause.expr.match(/(\w+)\s*\+\s*\?/);
+              if (addMatch) {
+                row[clause.col] = (row[addMatch[1]] || 0) + params[localIdx++];
+              }
+            }
+          }
+        }
+        return { changes: table.length };
+      }
+      return { changes: 0 };
+    }
+    const setClauses = parseSetClauses(setMatch[1]);
+    const whereStr = sql.match(/WHERE\s+(.+)$/i)?.[1] || '';
+    const whereParts = whereStr.split(/\s+AND\s+/i);
+    let _paramIdx = 0;
+    const setParamCount = setClauses.filter(c => c.expr.includes('?')).length;
+    const setParams = params.slice(0, setParamCount);
+    const whereParams = params.slice(setParamCount);
+    let changes = 0;
+    for (const row of table) {
+      let whereParamIdx = 0;
+      const matches = whereParts.every(part => {
+        const eqMatch = part.match(/(\w+)\s*(=|!=|>=|<=|>|<)\s*\?/);
+        if (eqMatch) {
+          const col = eqMatch[1];
+          const op = eqMatch[2];
+          const val = whereParams[whereParamIdx++];
+          if (op === '=') return row[col] === val;
+          if (op === '!=') return row[col] !== val;
+          return true;
+        }
+        const isNullMatch = part.match(/(\w+)\s+IS\s+NULL/i);
+        if (isNullMatch) return row[isNullMatch[1]] == null;
+        return true;
+      });
+      if (matches) {
+        let sIdx = 0;
+        for (const clause of setClauses) {
+          if (clause.expr === '?') {
+            row[clause.col] = setParams[sIdx++];
+          } else if (clause.expr.includes('+')) {
+            const addMatch = clause.expr.match(/(\w+)\s*\+\s*\?/);
+            if (addMatch) {
+              row[clause.col] = (row[addMatch[1]] || 0) + setParams[sIdx++];
+            }
+          }
+        }
+        changes++;
+      }
+    }
+    return { changes };
+  },
+  _handleDelete(sql: string, params: any[]) {
+    const tableName = extractTableName(sql);
+    const table = getWebTable(tableName);
+    const whereFilters = extractWhereFilters(sql, params);
+    const before = table.length;
+    webStore[tableName] = table.filter((row: any) => {
+      return !whereFilters.every(f => {
+        if (f.op === '=') return row[f.col] === f.val;
+        if (f.op === '>=') return row[f.col] >= f.val;
+        if (f.op === '<=') return row[f.col] <= f.val;
+        return true;
+      });
+    });
+    return { changes: before - webStore[tableName].length };
+  },
+};
+
+function extractTableName(sql: string): string {
+  const m = sql.match(/(?:FROM|INTO|UPDATE)\s+(\w+)/i);
+  return m ? m[1] : 'unknown';
+}
+
+function extractWhereFilters(sql: string, params: any[]): { col: string; op: string; val: any }[] {
+  const filters: { col: string; op: string; val: any }[] = [];
+  const whereMatch = sql.match(/WHERE\s+(.+?)(?:\s+ORDER|\s+LIMIT|\s+GROUP|$)/i);
+  if (!whereMatch) return filters;
+  const parts = whereMatch[1].split(/\s+AND\s+/i);
+  let paramIdx = 0;
+  const setMatch = sql.match(/SET\s+(.+?)\s+WHERE/i);
+  if (setMatch) {
+    const qCount = (setMatch[1].match(/\?/g) || []).length;
+    paramIdx = qCount;
+  }
+  for (const part of parts) {
+    const opMatch = part.match(/(\w+)\s*(>=|<=|!=|=|>|<)\s*\?/);
+    if (opMatch) {
+      filters.push({ col: opMatch[1], op: opMatch[2], val: params[paramIdx++] });
+      continue;
+    }
+    const isNotNull = part.match(/(\w+)\s+IS\s+NOT\s+NULL/i);
+    if (isNotNull) {
+      filters.push({ col: isNotNull[1], op: 'IS NOT NULL', val: null });
+      continue;
+    }
+    const isNull = part.match(/(\w+)\s+IS\s+NULL/i);
+    if (isNull) {
+      filters.push({ col: isNull[1], op: 'IS NULL', val: null });
+      continue;
+    }
+  }
+  return filters;
+}
+
+function extractOrderBy(sql: string): { col: string; dir: 'ASC' | 'DESC' }[] {
+  const m = sql.match(/ORDER\s+BY\s+(.+?)(?:\s+LIMIT|$)/i);
+  if (!m) return [];
+  return m[1].split(',').map(p => {
+    const parts = p.trim().split(/\s+/);
+    return { col: parts[0], dir: (parts[1]?.toUpperCase() === 'DESC' ? 'DESC' : 'ASC') as 'ASC' | 'DESC' };
+  });
+}
+
+function parseSetClauses(setStr: string): { col: string; expr: string }[] {
+  const results: { col: string; expr: string }[] = [];
+  const parts = setStr.split(',');
+  for (const part of parts) {
+    const m = part.match(/(\w+)\s*=\s*(.+)/);
+    if (m) {
+      results.push({ col: m[1].trim(), expr: m[2].trim() });
+    }
+  }
+  return results;
+}
+
 export function setCurrentUserId(userId: string | null) {
   currentUserId = userId;
   console.log('[Database] Current user set to:', userId);
@@ -641,18 +884,23 @@ async function runMigrations(database: SQLite.SQLiteDatabase) {
   }
 }
 
-export function getDatabase() {
+export function getDatabase(): DatabaseAdapter {
   if (Platform.OS === 'web') {
-    throw new Error('Database not available on web');
+    return webDb;
   }
   if (!db) {
     console.warn('[Database] Database not initialized yet');
     throw new Error('Database not initialized');
   }
-  return db;
+  return db as unknown as DatabaseAdapter;
 }
 
 export async function resetDatabase() {
+  if (Platform.OS === 'web') {
+    Object.keys(webStore).forEach(key => { webStore[key] = []; });
+    console.log('[Database] Web store reset');
+    return;
+  }
   const database = getDatabase();
   await database.execAsync(`
     DELETE FROM user_profile;

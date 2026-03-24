@@ -1,5 +1,6 @@
 export interface UserProfile {
   id: string;
+  userId?: string;
   fullName: string;
   email: string;
   totalXp: number;
