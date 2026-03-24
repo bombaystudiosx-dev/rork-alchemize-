@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -8,15 +8,52 @@ import {
   ScrollView,
   Alert,
   Platform,
+  Modal,
 } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter, Stack } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Upload, Camera, X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { manifestationsDb } from '@/lib/database';
 import type { Manifestation } from '@/types';
+
+interface SelectedImageState {
+  uri: string;
+  width?: number;
+  height?: number;
+}
+
+const IMAGE_MEDIA_TYPE = 'images' as const;
+const CAMERA_FACING_BACK = 'back' as const;
+const CAMERA_MODE_PICTURE = 'picture' as const;
+const CAMERA_RATIO = '16:9' as const;
+const PERMISSION_GRANTED = 'granted' as const;
+const IMAGE_PICKER_QUALITY = 0.8;
+const IMAGE_PICKER_ASPECT: [number, number] = [4, 5];
+const DEFAULT_MANIFESTATION_CATEGORY: Manifestation['category'] = 'other';
+const DEFAULT_MANIFESTATION_TITLE = 'My Vision';
+const DEFAULT_EMPTY_DESCRIPTION = '';
+const DEFAULT_MANIFESTATION_ORDER = 0;
+const CAMERA_BUTTON_LABEL_NATIVE = 'Open Camera';
+const CAMERA_BUTTON_LABEL_WEB = 'Use Upload';
+const IMAGE_PICK_ERROR_MESSAGE = 'Failed to pick image';
+const IMAGE_CAPTURE_ERROR_MESSAGE = 'Failed to capture image';
+const CREATE_ERROR_MESSAGE = 'Failed to create manifestation. Please try again.';
+const MISSING_INFO_MESSAGE = 'Please add a vision image or write an intention.';
+const LIBRARY_PERMISSION_MESSAGE = 'Please allow access to your photo library.';
+const CAMERA_PERMISSION_MESSAGE = 'Please allow camera access.';
+const WEB_CAMERA_MESSAGE = 'Camera preview is only available on native devices. Please use Upload instead.';
+const CAMERA_MODAL_TITLE = 'Capture your portal image';
+const CAMERA_MODAL_SUBTITLE = 'Frame your vision and save the exact photo to your board.';
+const CAMERA_CLOSE_LABEL = 'Close';
+const CAMERA_CAPTURE_LABEL = 'Capture';
+const CAMERA_PERMISSION_LABEL = 'Camera access is needed to capture your vision image.';
+const CAMERA_PERMISSION_BUTTON_LABEL = 'Allow Camera Access';
+const CAMERA_MISSING_ASSET_MESSAGE = 'No photo was captured. Please try again.';
+const CONSOLE_SCOPE = '[AddManifestation]';
 
 const MOOD_TAGS: {
   key: Manifestation['category'];
@@ -34,10 +71,12 @@ const MOOD_TAGS: {
 export default function AddManifestationScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
-  const [intention, setIntention] = useState('');
+  const [intention, setIntention] = useState<string>('');
   const [selectedMood, setSelectedMood] = useState<Manifestation['category'] | null>(null);
-  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<SelectedImageState | null>(null);
+  const [isCameraOpen, setIsCameraOpen] = useState<boolean>(false);
 
   const createMutation = useMutation({
     mutationFn: (manifestation: Manifestation) => manifestationsDb.create(manifestation),
@@ -46,19 +85,27 @@ export default function AddManifestationScreen() {
       router.back();
     },
     onError: (error) => {
-      console.error('[AddManifestation] Create failed:', error);
-      Alert.alert('Error', 'Failed to create manifestation. Please try again.');
+      console.error(`${CONSOLE_SCOPE} Create failed:`, error);
+      Alert.alert('Error', CREATE_ERROR_MESSAGE);
     },
   });
 
+  const isWeb = Platform.OS === 'web';
+  const cameraButtonLabel = useMemo(() => {
+    return isWeb ? CAMERA_BUTTON_LABEL_WEB : CAMERA_BUTTON_LABEL_NATIVE;
+  }, [isWeb]);
+
+  const imageUri = selectedImage?.uri ?? null;
+
   const requestPermissions = useCallback(async () => {
-    if (Platform.OS !== 'web') {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please allow access to your photo library.');
-        return false;
-      }
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    console.log(`${CONSOLE_SCOPE} Media library permission status:`, status);
+
+    if (status !== PERMISSION_GRANTED) {
+      Alert.alert('Permission Required', LIBRARY_PERMISSION_MESSAGE);
+      return false;
     }
+
     return true;
   }, []);
 
@@ -68,73 +115,102 @@ export default function AddManifestationScreen() {
       if (!hasPermission) return;
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: [IMAGE_MEDIA_TYPE],
         allowsEditing: true,
-        quality: 0.8,
+        quality: IMAGE_PICKER_QUALITY,
+        aspect: IMAGE_PICKER_ASPECT,
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
-        setImageUri(result.assets[0].uri);
-        console.log('[AddManifestation] Image selected:', result.assets[0].uri);
+        const asset = result.assets[0];
+        setSelectedImage({
+          uri: asset.uri,
+          width: asset.width,
+          height: asset.height,
+        });
+        console.log(`${CONSOLE_SCOPE} Image selected:`, asset.uri);
       }
     } catch (error) {
-      console.error('[AddManifestation] Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image');
+      console.error(`${CONSOLE_SCOPE} Error picking image:`, error);
+      Alert.alert('Error', IMAGE_PICK_ERROR_MESSAGE);
     }
   }, [requestPermissions]);
 
   const handleCamera = useCallback(async () => {
     try {
-      if (Platform.OS === 'web') {
-        Alert.alert('Not Available', 'Camera is not available on web. Please use Upload instead.');
+      if (isWeb) {
+        Alert.alert('Not Available', WEB_CAMERA_MESSAGE);
         return;
       }
 
-      const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
-      if (cameraPermission.status !== 'granted') {
-        Alert.alert('Permission Required', 'Please allow camera access.');
+      const permissionResponse = cameraPermission ?? await requestCameraPermission();
+      console.log(`${CONSOLE_SCOPE} Camera permission status:`, permissionResponse?.status);
+
+      if (permissionResponse?.status !== PERMISSION_GRANTED) {
+        Alert.alert('Permission Required', CAMERA_PERMISSION_MESSAGE);
         return;
       }
 
+      setIsCameraOpen(true);
+    } catch (error) {
+      console.error(`${CONSOLE_SCOPE} Error opening camera:`, error);
+      Alert.alert('Error', IMAGE_CAPTURE_ERROR_MESSAGE);
+    }
+  }, [cameraPermission, isWeb, requestCameraPermission]);
+
+  const handleNativeCapture = useCallback(async () => {
+    try {
       const result = await ImagePicker.launchCameraAsync({
-        quality: 0.8,
+        mediaTypes: [IMAGE_MEDIA_TYPE],
+        quality: IMAGE_PICKER_QUALITY,
         allowsEditing: true,
+        aspect: IMAGE_PICKER_ASPECT,
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {
-        setImageUri(result.assets[0].uri);
-        console.log('[AddManifestation] Photo captured:', result.assets[0].uri);
+        const asset = result.assets[0];
+        setSelectedImage({
+          uri: asset.uri,
+          width: asset.width,
+          height: asset.height,
+        });
+        setIsCameraOpen(false);
+        console.log(`${CONSOLE_SCOPE} Photo captured via native camera:`, asset.uri);
+        return;
       }
+
+      Alert.alert('No Photo', CAMERA_MISSING_ASSET_MESSAGE);
     } catch (error) {
-      console.error('[AddManifestation] Error taking photo:', error);
-      Alert.alert('Error', 'Failed to take photo');
+      console.error(`${CONSOLE_SCOPE} Error capturing native photo:`, error);
+      Alert.alert('Error', IMAGE_CAPTURE_ERROR_MESSAGE);
     }
   }, []);
 
   const handleRemoveImage = useCallback(() => {
-    setImageUri(null);
+    setSelectedImage(null);
   }, []);
 
   const handleCreate = useCallback(() => {
     if (!intention.trim() && !imageUri) {
-      Alert.alert('Missing Info', 'Please add a vision image or write an intention.');
+      Alert.alert('Missing Info', MISSING_INFO_MESSAGE);
       return;
     }
 
+    const createdAt = Date.now();
     const manifestation: Manifestation = {
-      id: Date.now().toString(),
-      title: intention.trim() || 'My Vision',
-      description: '',
-      category: selectedMood ?? 'other',
+      id: createdAt.toString(),
+      title: intention.trim() || DEFAULT_MANIFESTATION_TITLE,
+      description: DEFAULT_EMPTY_DESCRIPTION,
+      category: selectedMood ?? DEFAULT_MANIFESTATION_CATEGORY,
       intention: intention.trim(),
       images: imageUri ? [imageUri] : [],
       isFavorite: false,
-      order: 0,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      order: DEFAULT_MANIFESTATION_ORDER,
+      createdAt,
+      updatedAt: createdAt,
     };
 
-    console.log('[AddManifestation] Creating manifestation:', manifestation.id);
+    console.log(`${CONSOLE_SCOPE} Creating manifestation:`, manifestation.id, manifestation.category);
     createMutation.mutate(manifestation);
   }, [intention, imageUri, selectedMood, createMutation]);
 
@@ -204,7 +280,7 @@ export default function AddManifestationScreen() {
                     testID="camera-button"
                   >
                     <Camera color="#c4b5fd" size={24} />
-                    <Text style={styles.uploadButtonText}>Camera</Text>
+                    <Text style={styles.uploadButtonText}>{cameraButtonLabel}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -272,6 +348,82 @@ export default function AddManifestationScreen() {
           </TouchableOpacity>
         </ScrollView>
       </LinearGradient>
+
+      <Modal
+        visible={isCameraOpen}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setIsCameraOpen(false)}
+        transparent={false}
+      >
+        <View style={styles.cameraModalContainer}>
+          <LinearGradient
+            colors={['#05010f', '#0c0520', '#110a2f']}
+            style={styles.cameraModalBackground}
+          >
+            <View style={styles.cameraModalHeader}>
+              <TouchableOpacity
+                style={styles.cameraHeaderButton}
+                onPress={() => setIsCameraOpen(false)}
+                activeOpacity={0.8}
+                testID="close-camera-button"
+              >
+                <X color="#ffffff" size={18} />
+                <Text style={styles.cameraHeaderButtonText}>{CAMERA_CLOSE_LABEL}</Text>
+              </TouchableOpacity>
+
+              <View style={styles.cameraHeaderCopy}>
+                <Text style={styles.cameraModalTitle}>{CAMERA_MODAL_TITLE}</Text>
+                <Text style={styles.cameraModalSubtitle}>{CAMERA_MODAL_SUBTITLE}</Text>
+              </View>
+            </View>
+
+            {cameraPermission?.granted ? (
+              <View style={styles.cameraShell}>
+                <CameraView
+                  style={styles.cameraPreview}
+                  facing={CAMERA_FACING_BACK}
+                  mode={CAMERA_MODE_PICTURE}
+                  ratio={CAMERA_RATIO}
+                  testID="native-camera-preview"
+                />
+                <View style={styles.cameraFooter}>
+                  <TouchableOpacity
+                    style={styles.cameraCaptureButton}
+                    onPress={handleNativeCapture}
+                    activeOpacity={0.85}
+                    testID="capture-photo-button"
+                  >
+                    <LinearGradient
+                      colors={['#8b5cf6', '#6366f1', '#3b82f6']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.cameraCaptureGradient}
+                    >
+                      <Camera color="#ffffff" size={20} />
+                      <Text style={styles.cameraCaptureText}>{CAMERA_CAPTURE_LABEL}</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.cameraPermissionCard}>
+                <Text style={styles.cameraPermissionText}>{CAMERA_PERMISSION_LABEL}</Text>
+                <TouchableOpacity
+                  style={styles.cameraPermissionButton}
+                  onPress={() => {
+                    void requestCameraPermission();
+                  }}
+                  activeOpacity={0.8}
+                  testID="request-camera-permission-button"
+                >
+                  <Text style={styles.cameraPermissionButtonText}>{CAMERA_PERMISSION_BUTTON_LABEL}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </LinearGradient>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -438,5 +590,118 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     color: '#ffffff',
     letterSpacing: 0.3,
+  },
+  cameraModalContainer: {
+    flex: 1,
+    backgroundColor: '#05010f',
+  },
+  cameraModalBackground: {
+    flex: 1,
+    paddingTop: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+  },
+  cameraModalHeader: {
+    gap: 14,
+    marginBottom: 20,
+  },
+  cameraHeaderButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  cameraHeaderButtonText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '600' as const,
+  },
+  cameraHeaderCopy: {
+    gap: 6,
+  },
+  cameraModalTitle: {
+    color: '#ffffff',
+    fontSize: 24,
+    fontWeight: '700' as const,
+    letterSpacing: 0.2,
+  },
+  cameraModalSubtitle: {
+    color: 'rgba(213, 201, 255, 0.72)',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  cameraShell: {
+    flex: 1,
+    gap: 16,
+  },
+  cameraPreview: {
+    flex: 1,
+    borderRadius: 28,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.24)',
+    backgroundColor: '#140826',
+  },
+  cameraFooter: {
+    paddingTop: 4,
+  },
+  cameraCaptureButton: {
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#8b5cf6',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  cameraCaptureGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 18,
+    borderRadius: 24,
+  },
+  cameraCaptureText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700' as const,
+    letterSpacing: 0.2,
+  },
+  cameraPermissionCard: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    gap: 18,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.18)',
+  },
+  cameraPermissionText: {
+    color: '#ffffff',
+    textAlign: 'center',
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  cameraPermissionButton: {
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 999,
+    backgroundColor: 'rgba(124, 58, 237, 0.24)',
+    borderWidth: 1,
+    borderColor: 'rgba(196, 181, 253, 0.24)',
+  },
+  cameraPermissionButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600' as const,
   },
 });
