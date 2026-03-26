@@ -5,6 +5,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, Heart, Play, Edit } from 'lucide-react-native';
 import { affirmationsDb } from '@/lib/database';
 import type { Affirmation, AffirmationCategory } from '@/types';
+import LoadingState from '@/components/LoadingState';
+import ErrorState from '@/components/ErrorState';
 
 const categoryEmojis: Record<AffirmationCategory, string> = {
   'self-love': '💖',
@@ -31,7 +33,7 @@ export default function AffirmationsScreen() {
   const queryClient = useQueryClient();
   const [selectedCategory, setSelectedCategory] = useState<AffirmationCategory | 'all' | 'favorites'>('all');
 
-  const { data: allAffirmations = [] } = useQuery({
+  const { data: allAffirmations = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['affirmations'],
     queryFn: () => affirmationsDb.getAll(),
   });
@@ -52,7 +54,7 @@ export default function AffirmationsScreen() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => affirmationsDb.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['affirmations'] });
+      void queryClient.invalidateQueries({ queryKey: ['affirmations'] });
     },
   });
 
@@ -60,7 +62,7 @@ export default function AffirmationsScreen() {
     mutationFn: (affirmation: Affirmation) =>
       affirmationsDb.update({ ...affirmation, isFavorite: !affirmation.isFavorite }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['affirmations'] });
+      void queryClient.invalidateQueries({ queryKey: ['affirmations'] });
     },
   });
 
@@ -112,6 +114,12 @@ export default function AffirmationsScreen() {
       >
         <View style={styles.overlay} />
       
+      {isLoading ? (
+        <LoadingState message="Loading affirmations..." />
+      ) : isError ? (
+        <ErrorState message="Could not load affirmations" onRetry={refetch} />
+      ) : (
+      <>
       {todayAffirmation && (
         <View style={styles.todayCard}>
           <Text style={styles.todayLabel}>✨ Today&apos;s Affirmation</Text>
@@ -178,6 +186,8 @@ export default function AffirmationsScreen() {
       <TouchableOpacity style={styles.fab} onPress={() => router.push('/affirmations/add' as any)}>
         <Plus color="#fff" size={28} />
       </TouchableOpacity>
+      </>
+      )}
       </ImageBackground>
     </View>
   );

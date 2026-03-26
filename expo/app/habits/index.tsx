@@ -19,6 +19,8 @@ import ConfettiCannon from 'react-native-confetti-cannon';
 import { habitsDb, habitCompletionsDb, userProfileDb } from '@/lib/database';
 import type { Habit } from '@/types';
 import { ASSETS } from '@/constants/assets';
+import LoadingState from '@/components/LoadingState';
+import ErrorState from '@/components/ErrorState';
 
 type Section = 'morning' | 'health' | 'evening' | 'custom';
 
@@ -41,7 +43,7 @@ export default function HabitsScreen() {
   const [counterValues, setCounterValues] = useState<Record<string, number>>({});
   const [floatingRewards, setFloatingRewards] = useState<{ id: string; xp: number; energy: number; x: number; y: number }[]>([]);
 
-  const { data: habits = [] } = useQuery({
+  const { data: habits = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['habits'],
     queryFn: () => habitsDb.getAll(),
   });
@@ -91,10 +93,10 @@ export default function HabitsScreen() {
       await userProfileDb.updateXpAndEnergy(xp, energy);
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['habit-completions'] });
-      queryClient.invalidateQueries({ queryKey: ['habits'] });
-      queryClient.invalidateQueries({ queryKey: ['user-profile'] });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      void queryClient.invalidateQueries({ queryKey: ['habit-completions'] });
+      void queryClient.invalidateQueries({ queryKey: ['habits'] });
+      void queryClient.invalidateQueries({ queryKey: ['user-profile'] });
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       confettiRef.current?.start();
       
       showFloatingReward(variables.xp, variables.energy);
@@ -554,7 +556,11 @@ export default function HabitsScreen() {
         </View>
 
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-          {habits.length === 0 ? (
+          {isLoading ? (
+            <LoadingState message="Loading habits..." />
+          ) : isError ? (
+            <ErrorState message="Could not load your habits" onRetry={refetch} />
+          ) : habits.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyIcon}>✨</Text>
               <Text style={styles.emptyText}>No habits yet!</Text>

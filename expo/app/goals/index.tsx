@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, FlatList, TouchableOpacity, Text, ImageBackground } from 'react-native';
+import { View, StyleSheet, FlatList, TouchableOpacity, Text, ImageBackground, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, CheckCircle2, Circle, Flame, Target, TrendingUp } from 'lucide-react-native';
 import { goalsDb, goalCompletionsDb } from '@/lib/database';
 import type { Goal, GoalCompletion } from '@/types';
+import LoadingState from '@/components/LoadingState';
+import ErrorState from '@/components/ErrorState';
 
 export default function GoalsScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<'in_progress' | 'completed'>('in_progress');
 
-  const { data: allGoals = [] } = useQuery({
+  const { data: allGoals = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['goals'],
     queryFn: () => goalsDb.getAll(),
   });
@@ -47,7 +49,11 @@ export default function GoalsScreen() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => goalsDb.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['goals'] });
+      void queryClient.invalidateQueries({ queryKey: ['goals'] });
+    },
+    onError: (error) => {
+      console.error('[Goals] Delete error:', error);
+      Alert.alert('Error', 'Failed to delete goal. Please try again.');
     },
   });
 
@@ -55,7 +61,7 @@ export default function GoalsScreen() {
     mutationFn: (goal: Goal) =>
       goalsDb.update({ ...goal, status: goal.status === 'completed' ? 'in_progress' : 'completed', updatedAt: Date.now() }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['goals'] });
+      void queryClient.invalidateQueries({ queryKey: ['goals'] });
     },
   });
 
@@ -142,6 +148,12 @@ export default function GoalsScreen() {
         resizeMode="cover"
       >
         <View style={styles.overlay} />
+      {isLoading ? (
+        <LoadingState message="Loading goals..." />
+      ) : isError ? (
+        <ErrorState message="Could not load your goals" onRetry={refetch} />
+      ) : (
+      <>
       <View style={styles.filterContainer}>
         <TouchableOpacity
           style={[styles.filterButton, filter === 'in_progress' && styles.filterButtonActive]}
@@ -181,6 +193,8 @@ export default function GoalsScreen() {
       >
         <Plus color="#fff" size={28} />
       </TouchableOpacity>
+      </>
+      )}
       </ImageBackground>
     </View>
   );

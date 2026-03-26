@@ -899,7 +899,7 @@ export function getDatabase(): DatabaseAdapter {
   }
   if (!db) {
     console.warn('[Database] Database not initialized yet - call initDatabase() first');
-    throw new Error('Database not initialized');
+    throw new Error('Database not initialized. Please restart the app.');
   }
   return db as unknown as DatabaseAdapter;
 }
@@ -910,7 +910,15 @@ export async function ensureDatabase(): Promise<DatabaseAdapter> {
   }
   if (!db) {
     console.log('[Database] Auto-initializing database...');
-    await initDatabase();
+    try {
+      await initDatabase();
+    } catch (error) {
+      console.error('[Database] Auto-init failed:', error);
+      throw new Error('Failed to initialize database. Please restart the app.');
+    }
+  }
+  if (!db) {
+    throw new Error('Database failed to initialize. Please restart the app.');
   }
   return db as unknown as DatabaseAdapter;
 }

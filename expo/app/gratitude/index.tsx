@@ -7,6 +7,8 @@ import { gratitudeDb } from '@/lib/database';
 import { useTheme } from '@/contexts/theme-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { isSameLocalDay, startOfLocalDay } from '@/lib/date-utils';
+import LoadingState from '@/components/LoadingState';
+import ErrorState from '@/components/ErrorState';
 
 export default function GratitudeJournalScreen() {
   const router = useRouter();
@@ -18,7 +20,7 @@ export default function GratitudeJournalScreen() {
   const [selectedDate, setSelectedDate] = useState<number | null>(null);
   const today = useMemo(() => startOfLocalDay(new Date()), []);
 
-  const { data: entries = [] } = useQuery({
+  const { data: entries = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['gratitude-entries'],
     queryFn: () => Platform.OS === 'web' ? Promise.resolve([]) : gratitudeDb.getAll(),
   });
@@ -197,6 +199,11 @@ export default function GratitudeJournalScreen() {
         </View>
       </TouchableOpacity>
 
+      {isLoading ? (
+        <LoadingState message="Loading journal..." />
+      ) : isError ? (
+        <ErrorState message="Could not load your journal" onRetry={refetch} />
+      ) : (
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={{ flex: 1 }}>
           <ScrollView 
@@ -352,6 +359,7 @@ export default function GratitudeJournalScreen() {
           <Plus color="#ffffff" size={28} strokeWidth={3} />
         </LinearGradient>
       </TouchableOpacity>
+      )}
     </ImageBackground>
   );
 }

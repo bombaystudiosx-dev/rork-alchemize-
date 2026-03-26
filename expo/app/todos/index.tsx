@@ -5,6 +5,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, CheckCircle2, Circle, Calendar, Bell, ChevronRight, AlertCircle, X, FileText } from 'lucide-react-native';
 import { tasksDb } from '@/lib/database';
 import type { Task } from '@/types';
+import LoadingState from '@/components/LoadingState';
+import ErrorState from '@/components/ErrorState';
 import { Image } from 'expo-image';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Notifications from 'expo-notifications';
@@ -33,7 +35,7 @@ export default function TodosScreen() {
   const [selectedTaskForNotes, setSelectedTaskForNotes] = useState<Task | null>(null);
   const [notesText, setNotesText] = useState('');
 
-  const { data: allTasks = [] } = useQuery({
+  const { data: allTasks = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['tasks'],
     queryFn: () => tasksDb.getAll(),
   });
@@ -55,7 +57,7 @@ export default function TodosScreen() {
   const createMutation = useMutation({
     mutationFn: (task: Task) => tasksDb.create(task),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      void queryClient.invalidateQueries({ queryKey: ['tasks'] });
       setNewTaskTitle('');
     },
   });
@@ -63,14 +65,14 @@ export default function TodosScreen() {
   const updateMutation = useMutation({
     mutationFn: (task: Task) => tasksDb.update(task),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      void queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => tasksDb.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      void queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
   });
 
@@ -488,7 +490,11 @@ export default function TodosScreen() {
         )}
       </View>
 
-      {filteredTasks.length === 0 ? (
+      {isLoading ? (
+        <LoadingState message="Loading tasks..." />
+      ) : isError ? (
+        <ErrorState message="Could not load tasks" onRetry={refetch} />
+      ) : filteredTasks.length === 0 ? (
         <View style={styles.emptyContainer}>
           <CheckCircle2 color="rgba(255,255,255,0.3)" size={64} />
           <Text style={styles.emptyText}>
