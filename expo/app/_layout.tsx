@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useRouter, useRootNavigationState } from "expo-router";
 import React, { useEffect } from "react";
 import { StyleSheet, Text, TouchableOpacity, Platform, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -21,7 +21,8 @@ const queryClient = new QueryClient({
 
 function BackButton() {
   const router = useRouter();
-  const canGoBack = router.canGoBack();
+  const navState = useRootNavigationState();
+  const canGoBack = (navState?.routes?.length ?? 0) > 1;
   if (!canGoBack) return null;
   return (
     <TouchableOpacity
