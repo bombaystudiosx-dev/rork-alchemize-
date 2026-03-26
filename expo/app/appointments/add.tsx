@@ -16,7 +16,7 @@ import { Calendar, Clock, User, Briefcase, FileText, Check } from 'lucide-react-
 import { appointmentsDb } from '@/lib/database';
 import type { Appointment, AppointmentCategory } from '@/types';
 import { startOfLocalDay } from '@/lib/date-utils';
-
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const PERSONAL_COLOR = '#3b82f6';
 const BUSINESS_COLOR = '#22c55e';
@@ -35,6 +35,7 @@ export default function AddAppointmentScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   useEffect(() => {
     if (params.date) {
@@ -45,7 +46,7 @@ export default function AddAppointmentScreen() {
     }
 
     if (params.id) {
-      void loadAppointment(params.id);
+      loadAppointment(params.id);
     }
   }, [params.date, params.id]);
 
@@ -107,18 +108,28 @@ export default function AddAppointmentScreen() {
     }
   };
 
-  const generateDateOptions = () => {
-    const options: Date[] = [];
-    const today = new Date();
-    for (let i = -7; i <= 60; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
-      options.push(startOfLocalDay(d));
+  const handleDateChange = (event: any, date?: Date) => {
+    setShowDatePicker(false);
+    if (date) {
+      setSelectedDate(date);
     }
-    return options;
   };
 
-  const dateOptions = generateDateOptions();
+  const handleTimeChange = (event: any, date?: Date) => {
+    setShowTimePicker(false);
+    if (date) {
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      setSelectedTime(`${hours}:${minutes}`);
+    }
+  };
+
+  const getTimeDate = () => {
+    const [hours, minutes] = selectedTime.split(':').map(Number);
+    const date = new Date();
+    date.setHours(hours, minutes, 0, 0);
+    return date;
+  };
 
   const timeOptions = [
     '06:00', '06:30', '07:00', '07:30', '08:00', '08:30',
@@ -220,7 +231,7 @@ export default function AddAppointmentScreen() {
               <Text style={styles.label}>Date</Text>
               <TouchableOpacity
                 style={styles.dateTimeButton}
-                onPress={() => setShowDatePicker(!showDatePicker)}
+                onPress={() => setShowDatePicker(true)}
               >
                 <Calendar size={20} color="#a78bfa" />
                 <Text style={styles.dateTimeText}>
@@ -233,70 +244,65 @@ export default function AddAppointmentScreen() {
                 </Text>
               </TouchableOpacity>
               {showDatePicker && (
+                <DateTimePicker
+                  value={selectedDate}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={handleDateChange}
+                  themeVariant="dark"
+                />
+              )}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Time</Text>
+              {Platform.OS === 'web' ? (
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   style={styles.timeScrollView}
                   contentContainerStyle={styles.timeScrollContent}
                 >
-                  {dateOptions.map((date, idx) => {
-                    const isSelected = date.toDateString() === selectedDate.toDateString();
-                    return (
-                      <TouchableOpacity
-                        key={idx}
-                        style={[
-                          styles.dateChip,
-                          isSelected && styles.dateChipActive,
-                        ]}
-                        onPress={() => {
-                          setSelectedDate(date);
-                          setShowDatePicker(false);
-                        }}
-                      >
-                        <Text style={[styles.dateChipDay, isSelected && styles.dateChipTextActive]}>
-                          {date.toLocaleDateString('en-US', { weekday: 'short' })}
-                        </Text>
-                        <Text style={[styles.dateChipNum, isSelected && styles.dateChipTextActive]}>
-                          {date.getDate()}
-                        </Text>
-                        <Text style={[styles.dateChipMonth, isSelected && styles.dateChipTextActive]}>
-                          {date.toLocaleDateString('en-US', { month: 'short' })}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              )}
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Time</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.timeScrollView}
-                contentContainerStyle={styles.timeScrollContent}
-              >
-                {timeOptions.map((time) => (
-                  <TouchableOpacity
-                    key={time}
-                    style={[
-                      styles.timeChip,
-                      selectedTime === time && styles.timeChipActive,
-                    ]}
-                    onPress={() => setSelectedTime(time)}
-                  >
-                    <Text
+                  {timeOptions.map((time) => (
+                    <TouchableOpacity
+                      key={time}
                       style={[
-                        styles.timeChipText,
-                        selectedTime === time && styles.timeChipTextActive,
+                        styles.timeChip,
+                        selectedTime === time && styles.timeChipActive,
                       ]}
+                      onPress={() => setSelectedTime(time)}
                     >
-                      {time}
-                    </Text>
+                      <Text
+                        style={[
+                          styles.timeChipText,
+                          selectedTime === time && styles.timeChipTextActive,
+                        ]}
+                      >
+                        {time}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    style={styles.dateTimeButton}
+                    onPress={() => setShowTimePicker(true)}
+                  >
+                    <Clock size={20} color="#a78bfa" />
+                    <Text style={styles.dateTimeText}>{selectedTime}</Text>
                   </TouchableOpacity>
-                ))}
-              </ScrollView>
+                  {showTimePicker && (
+                    <DateTimePicker
+                      value={getTimeDate()}
+                      mode="time"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      onChange={handleTimeChange}
+                      themeVariant="dark"
+                    />
+                  )}
+                </>
+              )}
             </View>
 
             <View style={styles.inputGroup}>
@@ -485,39 +491,6 @@ const styles = StyleSheet.create({
     fontWeight: '500' as const,
   },
   timeChipTextActive: {
-    color: '#fff',
-  },
-  dateChip: {
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    minWidth: 56,
-  },
-  dateChipActive: {
-    backgroundColor: 'rgba(167,139,250,0.3)',
-    borderColor: '#a78bfa',
-  },
-  dateChipDay: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.5)',
-    fontWeight: '500' as const,
-  },
-  dateChipNum: {
-    fontSize: 18,
-    color: 'rgba(255,255,255,0.9)',
-    fontWeight: '700' as const,
-    marginVertical: 2,
-  },
-  dateChipMonth: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.5)',
-    fontWeight: '500' as const,
-  },
-  dateChipTextActive: {
     color: '#fff',
   },
   notesContainer: {
