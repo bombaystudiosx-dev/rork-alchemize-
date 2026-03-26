@@ -107,8 +107,8 @@ export default function CalorieTrackerScreen() {
       return waterLogsDb.create(waterLog);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['waterLogs'] });
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      void queryClient.invalidateQueries({ queryKey: ['waterLogs'] });
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
   });
 
@@ -220,7 +220,7 @@ export default function CalorieTrackerScreen() {
     newDate.setDate(newDate.getDate() + direction);
     if (newDate <= new Date()) {
       setSelectedDate(newDate);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   }, [selectedDate]);
 
@@ -321,8 +321,7 @@ export default function CalorieTrackerScreen() {
                   strokeLinecap="round"
                   strokeDasharray={circumference}
                   strokeDashoffset={circumference * (1 - Math.min(dailyTotals.calories / goals.calories, 1))}
-                  rotation="-90"
-                  origin={`${RING_SIZE / 2}, ${RING_SIZE / 2}`}
+                  transform={`rotate(-90, ${RING_SIZE / 2}, ${RING_SIZE / 2})`}
                 />
               )}
             </Svg>
