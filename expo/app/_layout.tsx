@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import React, { useEffect } from "react";
 import { StyleSheet, Text, TouchableOpacity, Platform, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -19,29 +19,32 @@ const queryClient = new QueryClient({
   },
 });
 
+function BackButton() {
+  const router = useRouter();
+  return (
+    <TouchableOpacity
+      onPress={() => router.back()}
+      style={layoutStyles.backButton}
+      activeOpacity={0.7}
+      testID="global-back-button"
+    >
+      <ChevronLeft color="#ffffff" size={18} strokeWidth={2.5} />
+      <Text style={layoutStyles.backButtonText}>Back</Text>
+    </TouchableOpacity>
+  );
+}
+
 function RootLayoutNav() {
   return (
     <Stack
-      screenOptions={({ navigation }) => ({
+      screenOptions={{
         headerBackTitle: "Back",
         headerTintColor: "#ffffff",
         headerStyle: { backgroundColor: '#0c0520' },
         headerShadowVisible: false,
         headerTitleStyle: { color: '#ffffff' },
-        headerLeft: navigation.canGoBack()
-          ? ({ tintColor }) => (
-              <TouchableOpacity
-                onPress={() => navigation.goBack()}
-                style={layoutStyles.backButton}
-                activeOpacity={0.7}
-                testID="global-back-button"
-              >
-                <ChevronLeft color={tintColor ?? '#ffffff'} size={18} strokeWidth={2.5} />
-                <Text style={layoutStyles.backButtonText}>Back</Text>
-              </TouchableOpacity>
-            )
-          : undefined,
-      })}
+        headerLeft: () => <BackButton />,
+      }}
     >
       <Stack.Screen name="auth" options={{ title: "Welcome", headerShown: false }} />
       <Stack.Screen name="index" options={{ title: "Alchemize", headerShown: false }} />
