@@ -21,6 +21,8 @@ const queryClient = new QueryClient({
 
 function BackButton() {
   const router = useRouter();
+  const canGoBack = router.canGoBack();
+  if (!canGoBack) return null;
   return (
     <TouchableOpacity
       onPress={() => router.back()}
