@@ -196,8 +196,6 @@ export default function HomeScreen() {
         priority="high"
         transition={0}
       />
-      
-
       <View style={styles.carouselContainer}>
         <ScrollView
           ref={scrollViewRef}
@@ -756,8 +754,6 @@ function OrbitalHomeScreen({ featureCards, onCardPress, router }: OrbitalHomeScr
         />
       </Animated.View>
       <View style={orbitalStyles.overlay} />
-      
-
       <View style={orbitalStyles.carouselContainer}>
         <Animated.ScrollView
           ref={scrollViewRef}

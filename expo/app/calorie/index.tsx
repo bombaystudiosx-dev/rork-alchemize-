@@ -253,8 +253,7 @@ export default function CalorieTrackerScreen() {
         resizeMode="cover"
       >
         <View style={styles.overlay} />
-      
-      <ScrollView 
+        <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}

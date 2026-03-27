@@ -188,7 +188,6 @@ export default function GratitudeJournalScreen() {
       resizeMode="cover"
     >
       <View style={styles.overlay} />
-      
       <TouchableOpacity 
         onPress={() => router.back()}
         style={styles.backButton}
