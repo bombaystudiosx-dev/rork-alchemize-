@@ -980,14 +980,13 @@ const orbitalStyles = StyleSheet.create({
   },
   scrollContent: {
     alignItems: 'center',
-    paddingTop: 70,
-    paddingBottom: 40,
   },
   planetContainer: {
     width: Dimensions.get('window').width,
-    justifyContent: 'center',
+    height: Dimensions.get('window').height - 100,
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingBottom: 50,
   },
   planetWrapper: {
     alignItems: 'center',
