@@ -1,7 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { DeviceMotion, DeviceMotionMeasurement } from 'expo-sensors';
 import { View, StyleSheet, Dimensions, ScrollView, TouchableOpacity, Text, Animated, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -11,16 +10,12 @@ import { OPTIMIZED_IMAGE_URLS } from '@/constants/image-config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '@/contexts/theme-context';
 import PWAInstallPrompt from './pwa-install-prompt';
-import { ensureDatabase } from '@/lib/database';
-import { localDateKey } from '@/lib/date-utils';
-import UnifiedCalendar, { getWeekStart, type CalendarEvent } from '@/components/UnifiedCalendar';
-import DayEventsModal from '@/components/DayEventsModal';
 
 const FEATURES_VISIBILITY_KEY = '@alchemize_features_visibility';
-const CALENDAR_VISIBILITY_KEY = '@alchemize_calendar_visibility';
+
+
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const HEADER_Y_OFFSET = 80 as const;
 const CARD_HORIZONTAL_PADDING = 20 as const;
 const CARD_WIDTH = SCREEN_WIDTH - (CARD_HORIZONTAL_PADDING * 2);
 const CARD_HEIGHT = CARD_WIDTH + 100;
@@ -132,115 +127,7 @@ export default function HomeScreen() {
   }, [currentPage, goToPage]);
   const [featureCards, setFeatureCards] = useState<FeatureCard[]>(ALL_FEATURE_CARDS);
   const { theme } = useTheme();
-  const insets = useSafeAreaInsets();
-  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
-  const [selectedWeekStart, setSelectedWeekStart] = useState<Date>(getWeekStart(new Date()));
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [dayModalVisible, setDayModalVisible] = useState(false);
-  const [calendarVisible, setCalendarVisible] = useState(true);
 
-  const loadCalendarEvents = useCallback(async () => {
-    if (Platform.OS === 'web') return;
-    
-    try {
-      const db = await ensureDatabase();
-      
-      const startDate = new Date(selectedWeekStart);
-      startDate.setDate(startDate.getDate() - 30);
-      const endDate = new Date(selectedWeekStart);
-      endDate.setDate(endDate.getDate() + 60);
-      
-      const startTimestamp = startDate.getTime();
-      const endTimestamp = endDate.getTime();
-      
-      const transactions = await db.getAllAsync<any>(
-        'SELECT date FROM transactions WHERE date >= ? AND date <= ?',
-        [startTimestamp, endTimestamp]
-      );
-      
-      const gratitude = await db.getAllAsync<any>(
-        'SELECT entryDate FROM gratitude_entries WHERE entryDate >= ? AND entryDate <= ?',
-        [startTimestamp, endTimestamp]
-      );
-      
-      const tasks = await db.getAllAsync<any>(
-        'SELECT dueDate FROM tasks WHERE dueDate IS NOT NULL AND dueDate >= ? AND dueDate <= ?',
-        [startTimestamp, endTimestamp]
-      );
-      
-      const appointments = await db.getAllAsync<any>(
-        'SELECT date FROM appointments WHERE date >= ? AND date <= ?',
-        [startTimestamp, endTimestamp]
-      );
-      
-      const goals = await db.getAllAsync<any>(
-        'SELECT targetDate FROM goals WHERE targetDate IS NOT NULL AND targetDate >= ? AND targetDate <= ?',
-        [startTimestamp, endTimestamp]
-      );
-      
-      const workouts = await db.getAllAsync<any>(
-        'SELECT date FROM workouts WHERE date >= ? AND date <= ?',
-        [startTimestamp, endTimestamp]
-      );
-      
-      const habitCompletions = await db.getAllAsync<any>(
-        'SELECT completionDate FROM habit_completions WHERE completionDate >= ? AND completionDate <= ?',
-        [startTimestamp, endTimestamp]
-      );
-      
-      const manifestations = await db.getAllAsync<any>(
-        'SELECT createdAt FROM manifestations WHERE createdAt >= ? AND createdAt <= ?',
-        [startTimestamp, endTimestamp]
-      );
-      
-      const affirmations = await db.getAllAsync<any>(
-        'SELECT createdAt FROM affirmations WHERE createdAt >= ? AND createdAt <= ?',
-        [startTimestamp, endTimestamp]
-      );
-      
-      const meals = await db.getAllAsync<any>(
-        'SELECT loggedAt FROM food_logs WHERE loggedAt >= ? AND loggedAt <= ?',
-        [startTimestamp, endTimestamp]
-      );
-      
-      const eventMap = new Map<string, { [key: string]: number }>();
-      
-      const addEvent = (timestamp: number, type: string) => {
-        const dateStr = localDateKey(new Date(timestamp));
-        if (!eventMap.has(dateStr)) {
-          eventMap.set(dateStr, {});
-        }
-        const dayEvents = eventMap.get(dateStr)!;
-        dayEvents[type] = (dayEvents[type] || 0) + 1;
-      };
-      
-      transactions.forEach(t => addEvent(t.date, 'financial'));
-      gratitude.forEach(g => addEvent(g.entryDate, 'gratitude'));
-      tasks.forEach(t => addEvent(t.dueDate, 'task'));
-      appointments.forEach(a => addEvent(a.date, 'appointment'));
-      goals.forEach(g => addEvent(g.targetDate, 'goal'));
-      workouts.forEach(w => addEvent(w.date, 'workout'));
-      habitCompletions.forEach(h => addEvent(h.completionDate, 'habit'));
-      manifestations.forEach(m => addEvent(m.createdAt, 'manifestation'));
-      affirmations.forEach(a => addEvent(a.createdAt, 'affirmation'));
-      meals.forEach(m => addEvent(m.loggedAt, 'meal'));
-      
-      const allEvents: CalendarEvent[] = [];
-      eventMap.forEach((types, date) => {
-        Object.keys(types).forEach(type => {
-          allEvents.push({ date, type, count: types[type] });
-        });
-      });
-      
-      setCalendarEvents(allEvents);
-    } catch (error) {
-      if (error instanceof Error && error.message === 'Database not initialized') {
-        console.log('[Calendar] Waiting for database to initialize');
-      } else {
-        console.error('[Calendar] Error loading events:', error);
-      }
-    }
-  }, [selectedWeekStart]);
 
   const loadFeatureVisibility = async () => {
     try {
@@ -267,34 +154,16 @@ export default function HomeScreen() {
     }
   };
 
-  const loadCalendarVisibility = async () => {
-    try {
-      const stored = await AsyncStorage.getItem(CALENDAR_VISIBILITY_KEY);
-      if (stored !== null) {
-        setCalendarVisible(stored === 'true');
-        console.log('[Home] Calendar visibility loaded:', stored);
-      }
-    } catch (error) {
-      console.error('[Home] Error loading calendar visibility:', error);
-    }
-  };
+
 
   useEffect(() => {
     void loadFeatureVisibility();
-    void loadCalendarVisibility();
-    void loadCalendarEvents();
-  }, [loadCalendarEvents]);
-  
-  useEffect(() => {
-    void loadCalendarEvents();
-  }, [loadCalendarEvents, selectedWeekStart]);
+  }, []);
 
   useFocusEffect(
     React.useCallback(() => {
       void loadFeatureVisibility();
-      void loadCalendarVisibility();
-      void loadCalendarEvents();
-    }, [loadCalendarEvents])
+    }, [])
   );
 
   const handleScroll = (event: any) => {
@@ -307,85 +176,15 @@ export default function HomeScreen() {
     router.push(route as any);
   };
 
-  const handleDayPress = (date: Date) => {
-    setSelectedDate(date);
-    setDayModalVisible(true);
-  };
 
-  const getEventsForDate = (date: Date): CalendarEvent[] => {
-    const dateStr = localDateKey(date);
-    return calendarEvents.filter((e) => e.date === dateStr);
-  };
-
-  const getEventTitle = (type: string): string => {
-    const titles: { [key: string]: string } = {
-      financial: 'Financial Activity',
-      gratitude: 'Gratitude Entry',
-      task: 'Task',
-      appointment: 'Appointment',
-      goal: 'Goal Milestone',
-      workout: 'Workout',
-      habit: 'Habit Completion',
-      manifestation: 'Manifestation',
-      affirmation: 'Affirmation',
-      meal: 'Meal Log',
-    };
-    return titles[type] || type;
-  };
-
-  const getEventRoute = (type: string): string => {
-    const routes: { [key: string]: string } = {
-      financial: '/financial',
-      gratitude: '/gratitude',
-      task: '/todos',
-      appointment: '/appointments',
-      goal: '/goals',
-      workout: '/fitness',
-      habit: '/habits',
-      manifestation: '/manifestation-board',
-      affirmation: '/affirmations',
-      meal: '/calorie',
-    };
-    return routes[type] || '/';
-  };
-
-  const getEventColor = (type: string): string => {
-    const colors: { [key: string]: string } = {
-      financial: '#06b6d4',
-      gratitude: '#fbbf24',
-      task: '#f59e0b',
-      appointment: '#ef4444',
-      goal: '#ec4899',
-      workout: '#10b981',
-      habit: '#8b5cf6',
-      manifestation: '#d946ef',
-      affirmation: '#a78bfa',
-      meal: '#f97316',
-    };
-    return colors[type] || '#6366f1';
-  };
 
   if (theme === 'cosmic') {
     return <OrbitalHomeScreen 
       featureCards={featureCards} 
       onCardPress={handleCardPress} 
       router={router} 
-      calendarEvents={calendarEvents} 
-      selectedWeekStart={selectedWeekStart} 
-      onWeekChange={setSelectedWeekStart}
-      onDayPress={handleDayPress}
-      selectedDate={selectedDate}
-      dayModalVisible={dayModalVisible}
-      setDayModalVisible={setDayModalVisible}
-      getEventsForDate={getEventsForDate}
-      getEventTitle={getEventTitle}
-      getEventRoute={getEventRoute}
-      getEventColor={getEventColor}
-      calendarVisible={calendarVisible}
     />;
   }
-
-  const headerTopPadding = insets.top + HEADER_Y_OFFSET;
 
   return (
     <View style={styles.container}>
@@ -398,21 +197,6 @@ export default function HomeScreen() {
         transition={0}
       />
       
-      {calendarVisible && (
-        <View style={[styles.headerContainer, { paddingTop: headerTopPadding }]}>
-          <View style={styles.headerContent}>
-            <UnifiedCalendar 
-              events={calendarEvents}
-              selectedWeekStart={selectedWeekStart}
-              onWeekChange={setSelectedWeekStart}
-              onDayPress={handleDayPress}
-              onEventPress={(route) => router.push(route as any)}
-              getEventTitle={getEventTitle}
-              getEventColor={getEventColor}
-            />
-          </View>
-        </View>
-      )}
 
       <View style={styles.carouselContainer}>
         <ScrollView
@@ -525,16 +309,6 @@ export default function HomeScreen() {
       >
         <Settings color="#fff" size={24} />
       </TouchableOpacity>
-
-      <DayEventsModal
-        visible={dayModalVisible}
-        onClose={() => setDayModalVisible(false)}
-        selectedDate={selectedDate}
-        events={selectedDate ? getEventsForDate(selectedDate) : []}
-        onEventPress={(type: string) => router.push(getEventRoute(type) as any)}
-        getEventTitle={getEventTitle}
-        getEventColor={getEventColor}
-      />
 
       <PWAInstallPrompt />
     </View>
@@ -832,21 +606,9 @@ interface OrbitalHomeScreenProps {
   featureCards: FeatureCard[];
   onCardPress: (route: string) => void;
   router: any;
-  calendarEvents: CalendarEvent[];
-  selectedWeekStart: Date;
-  onWeekChange: (date: Date) => void;
-  onDayPress: (date: Date) => void;
-  selectedDate: Date | null;
-  dayModalVisible: boolean;
-  setDayModalVisible: (visible: boolean) => void;
-  getEventsForDate: (date: Date) => CalendarEvent[];
-  getEventTitle: (type: string) => string;
-  getEventRoute: (type: string) => string;
-  getEventColor: (type: string) => string;
-  calendarVisible: boolean;
 }
 
-function OrbitalHomeScreen({ featureCards, onCardPress, router, calendarEvents, selectedWeekStart, onWeekChange, onDayPress, selectedDate, dayModalVisible, setDayModalVisible, getEventsForDate, getEventTitle, getEventRoute, getEventColor, calendarVisible }: OrbitalHomeScreenProps) {
+function OrbitalHomeScreen({ featureCards, onCardPress, router }: OrbitalHomeScreenProps) {
   const scrollViewRef = useRef<ScrollView>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -864,7 +626,6 @@ function OrbitalHomeScreen({ featureCards, onCardPress, router, calendarEvents, 
     if (selectedIndex < total - 1) goToOrbitalPage(selectedIndex + 1);
   }, [selectedIndex, goToOrbitalPage]);
   const scrollX = useRef(new Animated.Value(0)).current;
-  const insets = useSafeAreaInsets();
   const tiltX = useRef(new Animated.Value(0)).current;
   const tiltY = useRef(new Animated.Value(0)).current;
   const floatAnims = useRef(
@@ -879,7 +640,6 @@ function OrbitalHomeScreen({ featureCards, onCardPress, router, calendarEvents, 
   ).current;
 
   const SCREEN_WIDTH = Dimensions.get('window').width;
-  const headerTopPadding = insets.top + HEADER_Y_OFFSET;
 
   useEffect(() => {
     const animations = floatAnims.map((anim, index) => {
@@ -997,22 +757,6 @@ function OrbitalHomeScreen({ featureCards, onCardPress, router, calendarEvents, 
       </Animated.View>
       <View style={orbitalStyles.overlay} />
       
-      {calendarVisible && (
-        <View style={[orbitalStyles.headerContainer, { paddingTop: headerTopPadding }]}>
-          <View style={orbitalStyles.headerContent}>
-            <UnifiedCalendar 
-              events={calendarEvents}
-              selectedWeekStart={selectedWeekStart}
-              onWeekChange={onWeekChange}
-              onDayPress={onDayPress}
-              isDark
-              onEventPress={(route) => router.push(route as any)}
-              getEventTitle={getEventTitle}
-              getEventColor={getEventColor}
-            />
-          </View>
-        </View>
-      )}
 
       <View style={orbitalStyles.carouselContainer}>
         <Animated.ScrollView
@@ -1141,17 +885,6 @@ function OrbitalHomeScreen({ featureCards, onCardPress, router, calendarEvents, 
       >
         <Settings color="#fff" size={24} />
       </TouchableOpacity>
-
-      <DayEventsModal
-        visible={dayModalVisible}
-        onClose={() => setDayModalVisible(false)}
-        selectedDate={selectedDate}
-        events={selectedDate ? getEventsForDate(selectedDate) : []}
-        onEventPress={(type: string) => router.push(getEventRoute(type) as any)}
-        getEventTitle={getEventTitle}
-        getEventColor={getEventColor}
-        isDark
-      />
 
       <PWAInstallPrompt />
     </View>
