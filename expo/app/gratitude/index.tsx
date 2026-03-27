@@ -337,28 +337,27 @@ export default function GratitudeJournalScreen() {
 
         <View style={{ height: 120 }} />
           </ScrollView>
+          <TouchableOpacity 
+            onPress={() => {
+              const date = selectedDate || startOfLocalDay(new Date()).getTime();
+              router.push(`/gratitude/add?date=${date}` as any);
+            }}
+            style={styles.fabContainer}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={['#a855f7', '#8a5cf6', '#7c3aed']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.fab, {
+                shadowColor: colors.purple,
+              }]}
+            >
+              <Plus color="#ffffff" size={28} strokeWidth={3} />
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
       </TouchableWithoutFeedback>
-
-      <TouchableOpacity 
-        onPress={() => {
-          const date = selectedDate || startOfLocalDay(new Date()).getTime();
-          router.push(`/gratitude/add?date=${date}` as any);
-        }}
-        style={styles.fabContainer}
-        activeOpacity={0.8}
-      >
-        <LinearGradient
-          colors={['#a855f7', '#8a5cf6', '#7c3aed']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.fab, {
-            shadowColor: colors.purple,
-          }]}
-        >
-          <Plus color="#ffffff" size={28} strokeWidth={3} />
-        </LinearGradient>
-      </TouchableOpacity>
       )}
     </ImageBackground>
   );
