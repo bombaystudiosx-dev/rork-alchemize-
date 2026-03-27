@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     alignItems: 'center',
-    paddingTop: 40,
+    paddingTop: 70,
     paddingBottom: 20,
   },
   cardContainer: {
@@ -984,7 +984,7 @@ const orbitalStyles = StyleSheet.create({
   },
   scrollContent: {
     alignItems: 'center',
-    paddingTop: 40,
+    paddingTop: 70,
     paddingBottom: 40,
   },
   planetContainer: {
