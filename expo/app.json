@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "app.ro",
+      "bundleIdentifier": "app.rork.alchemize-level-up",
       "entitlements": {
         "com": {
           "apple": {
