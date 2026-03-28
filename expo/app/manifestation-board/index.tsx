@@ -19,7 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { manifestationsDb } from '@/lib/database';
 import type { Manifestation } from '@/types';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CARD_GAP = 12;
 const CARD_WIDTH = (SCREEN_WIDTH - 32 - CARD_GAP) / 2;
 const CARD_HEIGHT = CARD_WIDTH * 1.3;
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: 20,
+    paddingTop: Math.round(SCREEN_HEIGHT * 0.35),
     paddingBottom: 100,
     paddingHorizontal: 16,
   },
