@@ -15,10 +15,18 @@ const FEATURES_VISIBILITY_KEY = '@alchemize_features_visibility';
 
 
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CARD_HORIZONTAL_PADDING = 20 as const;
 const CARD_WIDTH = SCREEN_WIDTH - (CARD_HORIZONTAL_PADDING * 2);
 const CARD_HEIGHT = CARD_WIDTH + 100;
+const HOME_CARD_TOP_OFFSET = Math.max(
+  56,
+  Math.min(Math.round(SCREEN_HEIGHT * 0.22), SCREEN_HEIGHT - CARD_HEIGHT - 120)
+);
+const ORBITAL_CARD_TOP_OFFSET = Math.max(
+  96,
+  Math.min(Math.round(SCREEN_HEIGHT * 0.22), SCREEN_HEIGHT - 390)
+);
 
 interface FeatureCard {
   id: string;
@@ -387,13 +395,14 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     alignItems: 'center',
-    paddingTop: 70,
+    paddingTop: 0,
     paddingBottom: 20,
   },
   cardContainer: {
     width: SCREEN_WIDTH,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
+    marginTop: HOME_CARD_TOP_OFFSET,
     paddingHorizontal: CARD_HORIZONTAL_PADDING,
   },
   card: {
@@ -982,10 +991,11 @@ const orbitalStyles = StyleSheet.create({
     alignItems: 'center',
   },
   planetContainer: {
-    width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height - 100,
-    justifyContent: 'flex-end',
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT - 100,
+    justifyContent: 'flex-start',
     alignItems: 'center',
+    paddingTop: ORBITAL_CARD_TOP_OFFSET,
     paddingBottom: 50,
   },
   planetWrapper: {
