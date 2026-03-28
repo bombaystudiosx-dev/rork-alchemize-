@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.base699b885148fb20799f795d54.app",
+      "bundleIdentifier": "app.ro",
       "entitlements": {
         "com": {
           "apple": {
