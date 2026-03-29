@@ -362,7 +362,7 @@ export default function MealPrepScreen() {
                         </Text>
                         <View style={styles.mealMeta}>
                           <Text style={styles.mealCaloriesText}>{meal.calories} cal</Text>
-                          {meal.protein && <Text style={styles.mealMacroText}>• {meal.protein}g P</Text>}
+                          {!!meal.protein && <Text style={styles.mealMacroText}>• {meal.protein}g P</Text>}
                         </View>
                       </View>
                       
