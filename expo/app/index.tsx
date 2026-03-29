@@ -126,11 +126,11 @@ export default function HomeScreen() {
     setCurrentPage(page);
   }, [screenWidth]);
 
-  const goToPrevCard = useCallback(() => {
+  const _goToPrevCard = useCallback(() => {
     if (currentPage > 0) goToPage(currentPage - 1);
   }, [currentPage, goToPage]);
 
-  const goToNextCard = useCallback((total: number) => {
+  const _goToNextCard = useCallback((total: number) => {
     if (currentPage < total - 1) goToPage(currentPage + 1);
   }, [currentPage, goToPage]);
   const [featureCards, setFeatureCards] = useState<FeatureCard[]>(ALL_FEATURE_CARDS);
@@ -272,14 +272,6 @@ export default function HomeScreen() {
 
         <View style={styles.footer}>
           <View style={styles.navRow}>
-            <TouchableOpacity
-              onPress={goToPrevCard}
-              style={[styles.navArrow, currentPage === 0 && styles.navArrowDisabled]}
-              activeOpacity={0.7}
-              disabled={currentPage === 0}
-            >
-              <ChevronLeft size={22} color={currentPage === 0 ? 'rgba(255,255,255,0.2)' : '#fff'} />
-            </TouchableOpacity>
             <View style={styles.dotsContainer}>
               {featureCards.map((_, index) => (
                 <TouchableOpacity
@@ -293,14 +285,6 @@ export default function HomeScreen() {
                 />
               ))}
             </View>
-            <TouchableOpacity
-              onPress={() => goToNextCard(featureCards.length)}
-              style={[styles.navArrow, currentPage === featureCards.length - 1 && styles.navArrowDisabled]}
-              activeOpacity={0.7}
-              disabled={currentPage === featureCards.length - 1}
-            >
-              <ChevronRight size={22} color={currentPage === featureCards.length - 1 ? 'rgba(255,255,255,0.2)' : '#fff'} />
-            </TouchableOpacity>
           </View>
           <Text style={styles.pageCounter}>
             {currentPage + 1} of {featureCards.length}
