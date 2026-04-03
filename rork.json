@@ -10,6 +10,11 @@
       "name": "Manifestation App",
       "path": "expo",
       "framework": "react-native"
+    },
+    {
+      "name": "Manifestation App",
+      "path": "ios",
+      "framework": "swift"
     }
   ]
 }
