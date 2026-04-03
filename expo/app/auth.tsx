@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/auth-context';
@@ -17,7 +18,14 @@ import { useRouter } from 'expo-router';
 
 export default function AuthScreen() {
   const router = useRouter();
-  const { login, signup } = useAuth();
+  const { login, signup, loginWithApple } = useAuth();
+  const [appleAvailable, setAppleAvailable] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS === 'ios') {
+      void AppleAuthentication.isAvailableAsync().then(setAppleAvailable);
+    }
+  }, []);
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -192,6 +200,31 @@ placeholder={language === 'en' ? 'Password' : 'Contraseña'}
               </LinearGradient>
             </TouchableOpacity>
 
+            {appleAvailable && (
+              <>
+                <View style={styles.divider}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>{language === 'en' ? 'OR' : 'O'}</Text>
+                  <View style={styles.dividerLine} />
+                </View>
+
+                <AppleAuthentication.AppleAuthenticationButton
+                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+                  cornerRadius={12}
+                  style={styles.appleButton}
+                  onPress={async () => {
+                    setError('');
+                    const result = await loginWithApple();
+                    if (result.success) {
+                      router.replace('/');
+                    } else if (result.error && result.error !== 'Sign in cancelled') {
+                      setError(result.error);
+                    }
+                  }}
+                />
+              </>
+            )}
 
           </View>
         </ScrollView>
@@ -402,6 +435,11 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     color: '#fff',
     marginRight: 8,
+  },
+  appleButton: {
+    width: '100%',
+    height: 48,
+    borderRadius: 12,
   },
   socialButtonText: {
     fontSize: 14,

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 
@@ -170,6 +171,54 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   }, []);
 
+  const loginWithApple = useCallback(async () => {
+    try {
+      console.log('[Auth] Signing in with Apple...');
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      const userId = `apple_${credential.user}`;
+      const email = credential.email || `${credential.user}@privaterelay.appleid.com`;
+      const name = credential.fullName
+        ? [credential.fullName.givenName, credential.fullName.familyName].filter(Boolean).join(' ')
+        : 'Apple User';
+
+      const usersData = await AsyncStorage.getItem(USERS_STORAGE_KEY);
+      const users: StoredUser[] = usersData ? JSON.parse(usersData) : [];
+
+      const existingUser = users.find(u => u.id === userId);
+      if (!existingUser) {
+        const newUser: StoredUser = { id: userId, email, name, password: '' };
+        users.push(newUser);
+        await AsyncStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+      }
+
+      const storedUser = existingUser || { id: userId, email, name, password: '' };
+      const token = `token_${userId}_${Date.now()}`;
+      const newAuthState: AuthState = {
+        user: { id: storedUser.id, email: storedUser.email, name: storedUser.name },
+        token,
+      };
+
+      setAuthState(newAuthState);
+      setCurrentUserId(storedUser.id);
+      await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newAuthState));
+
+      console.log('[Auth] Apple sign in successful');
+      return { success: true };
+    } catch (error: any) {
+      if (error.code === 'ERR_REQUEST_CANCELED') {
+        return { success: false, error: 'Sign in cancelled' };
+      }
+      console.error('[Auth] Apple sign in error:', error);
+      return { success: false, error: error.message || 'Apple sign in failed' };
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       console.log('[Auth] Logging out');
@@ -195,6 +244,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     rememberMe,
     login,
     signup,
+    loginWithApple,
     logout,
-  }), [authState.user, authState.token, rememberMe, login, signup, logout]);
+  }), [authState.user, authState.token, rememberMe, login, signup, loginWithApple, logout]);
 });
