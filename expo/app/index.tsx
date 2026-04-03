@@ -5,7 +5,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Settings, ChevronLeft, ChevronRight } from 'lucide-react-native';
-import { ASSETS } from '@/constants/assets';
 import { OPTIMIZED_IMAGE_URLS } from '@/constants/image-config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '@/contexts/theme-context';
@@ -45,7 +44,7 @@ const ALL_FEATURE_CARDS: FeatureCard[] = [
     id: 'manifestation-board',
     title: 'Manifestation Board',
     subtitle: 'Visualize and feel your desires until they become real.',
-    image: ASSETS.cardManifestationBoard,
+    image: OPTIMIZED_IMAGE_URLS.crystalBall,
     route: '/manifestation-board',
   },
   {

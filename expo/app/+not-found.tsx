@@ -1,3 +1,4 @@
+// template
 import { Link, Stack } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
@@ -22,19 +23,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 20,
-    backgroundColor: "#000",
   },
   title: {
-    fontSize: 24,
-    fontWeight: "700" as const,
-    color: "#fff",
+    fontSize: 20,
+    fontWeight: "bold",
   },
   link: {
     marginTop: 15,
     paddingVertical: 15,
   },
   linkText: {
-    fontSize: 16,
-    color: "#6366f1",
+    fontSize: 14,
+    color: "#2e78b7",
   },
 });

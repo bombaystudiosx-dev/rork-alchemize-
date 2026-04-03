@@ -28,6 +28,7 @@ export const OPTIMIZED_IMAGE_URLS = {
   gratitudeCard: 'https://fv5-4.files.fm/thumb_show.php?i=zqm55g6gzg&view&v=1&PHPSESSID=562f76ae684b8b5e8507e14030e7af116d9c6724',
   fitnessCard: 'https://fv5-4.files.fm/thumb_show.php?i=yeepyn9ydx&view&v=1&PHPSESSID=562f76ae684b8b5e8507e14030e7af116d9c6724',
   appointmentsCard: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/q6xkbpb7jmofbuzgauyqz',
+  crystalBall: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/o4isk1a4sw7quablupdim.png',
 };
 
 export async function preloadCriticalImages() {
